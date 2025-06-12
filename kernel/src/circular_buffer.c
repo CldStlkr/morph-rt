@@ -136,10 +136,13 @@ size_t cb_capacity(const circular_buffer_t *self) {
 size_t cb_size(const circular_buffer_t *self) { return self ? self->size : 0; }
 
 size_t cb_available(const circular_buffer_t *self) {
-  return self->capacity - self->size;
+  return self ? self->capacity - self->size : 0;
 }
 
 void cb_print_stats(const circular_buffer_t *self) {
+  if (!self) {
+    return;
+  }
   printf("circular buffer stats:\n");
   printf("\t capacity: %zu\n", self->capacity);
   printf("\t size: %zu\n", self->size);

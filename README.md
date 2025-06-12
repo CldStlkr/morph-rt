@@ -6,7 +6,7 @@ A custom RTOS kernel built from scratch for ARM Cortex-M4.
 
 I'm building a real-time operating system kernel to understand how these systems work under the hood. Starting with the basics: task scheduling, memory management, and inter-process communication.
 
-**Current status:** Circular buffer implementation complete, working on task management.
+**Current status:** Task implementation complete, working on task scheduling.
 
 ## Structure
 

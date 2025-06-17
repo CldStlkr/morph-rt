@@ -16,7 +16,7 @@ void scheduler_add_task(task_handle_t task);
 void scheduler_remove_task(task_handle_t task);
 
 // Task state transitions
-void scheduelr_block_current_task(void);
+void scheduler_block_current_task(void);
 void scheduler_unblock_task(task_handle_t task);
 void scheduler_yield(void);
 

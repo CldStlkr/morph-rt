@@ -220,7 +220,7 @@ void scheduler_delay_current_task(uint32_t ticks) {
   scheduler_yield();
 }
 
-// Prority management
+// Priority management
 task_priority_t scheduler_get_highest_priority(void) {
   for (task_priority_t priority = 0; priority <= MAX_PRIORITY; priority++) {
     if (ready_queues[priority] != NULL) {

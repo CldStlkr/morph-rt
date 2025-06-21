@@ -24,8 +24,7 @@ typedef struct circular_buffer_t {
   size_t mask; // Bit mask
 } circular_buffer_t;
 
-cb_result_t cb_init(circular_buffer_t *cb, size_t capacity,
-                    size_t element_size);
+cb_result_t cb_init(circular_buffer_t *cb, size_t capacity, size_t element_size);
 cb_result_t cb_free(circular_buffer_t *self);
 cb_result_t cb_clear(circular_buffer_t *self);
 

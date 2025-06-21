@@ -19,11 +19,12 @@ void scheduler_remove_task(task_handle_t task);
 void scheduler_block_current_task(void);
 void scheduler_unblock_task(task_handle_t task);
 void scheduler_yield(void);
+void scheduler_delay_current_task(uint32_t ticks);
 
 // Timer tick processing
 void scheduler_tick(void); // Called from timer interrupt
 
-// Prority management
+// Priority management
 task_priority_t scheduler_get_highest_priority(void);
 bool scheduler_has_ready_tasks(void);
 

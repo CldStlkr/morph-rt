@@ -1,14 +1,13 @@
-#include "../inc/task.h"
 #include "../inc/scheduler.h"
+#include "../inc/task.h"
 // Task Control Block - heart of task management
 
 #include <stdlib.h>
 #include <string.h>
 
 // Task management functions
-task_handle_t task_create_internal(task_function_t function, const char *name,
-                                   uint16_t stack_size, void *param,
-                                   task_priority_t priority) {
+task_handle_t task_create_internal(task_function_t function, const char *name, uint16_t stack_size,
+                                   void *param, task_priority_t priority) {
   if (!function || !name || stack_size == 0 || priority > MAX_PRIORITY) {
     return NULL;
   }
@@ -73,12 +72,10 @@ task_state_t task_get_state(task_handle_t task) {
 }
 
 // Stack management
-void task_init_stack(task_handle_t task, task_function_t function,
-                     void *param) {
+void task_init_stack(task_handle_t task, task_function_t function, void *param) {
 
   // Stack grows downward towards base, so start from top
-  uint32_t *stack_top =
-      task->stack_base + (task->stack_size / sizeof(uint32_t));
+  uint32_t *stack_top = task->stack_base + (task->stack_size / sizeof(uint32_t));
   uint32_t *sp = stack_top;
 
   // ARM Cortex-M4 automatically pushes these registers during interrupt entry
@@ -112,8 +109,7 @@ bool task_stack_check(task_handle_t task) {
     return false;
   }
 
-  uint32_t *stack_top =
-      task->stack_base + (task->stack_size / sizeof(uint32_t));
+  uint32_t *stack_top = task->stack_base + (task->stack_size / sizeof(uint32_t));
   uint32_t used_bytes = (stack_top - task->stack_pointer) * sizeof(uint32_t);
 
   return used_bytes < task->stack_size;
@@ -124,8 +120,7 @@ uint32_t task_stack_used_bytes(task_handle_t task) {
     return 0;
   }
 
-  uint32_t *stack_top =
-      task->stack_base + (task->stack_size / sizeof(uint32_t));
+  uint32_t *stack_top = task->stack_base + (task->stack_size / sizeof(uint32_t));
   uint32_t used_bytes = (stack_top - task->stack_pointer) * sizeof(uint32_t);
 
   return used_bytes;

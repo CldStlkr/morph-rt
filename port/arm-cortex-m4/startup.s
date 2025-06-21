@@ -1,4 +1,5 @@
-// startup.s - Basic boot sequence .syntax unified
+// startup.s - Basic boot sequence
+.syntax unified
 .arch armv7-m
 .cpu cortex-m4
 .thumb

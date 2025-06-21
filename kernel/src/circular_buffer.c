@@ -2,8 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 
-cb_result_t cb_init(circular_buffer_t *cb, size_t capacity,
-                    size_t element_size) {
+cb_result_t cb_init(circular_buffer_t *cb, size_t capacity, size_t element_size) {
 
   if (!cb || capacity == 0 || element_size == 0) {
     return CB_ERROR_NULL_POINTER;
@@ -57,6 +56,10 @@ cb_result_t cb_free(circular_buffer_t *self) {
   free(self->buffer);
   self->buffer = NULL;
   self->size = 0;
+  self->capacity = 0;
+  self->head = 0;
+  self->tail = 0;
+  self->mask = 0;
 
   return CB_SUCCESS;
 }
@@ -129,9 +132,7 @@ cb_result_t cb_peek(const circular_buffer_t *self, void *data_out) {
   return CB_SUCCESS;
 }
 
-size_t cb_capacity(const circular_buffer_t *self) {
-  return self ? self->capacity : 0;
-}
+size_t cb_capacity(const circular_buffer_t *self) { return self ? self->capacity : 0; }
 
 size_t cb_size(const circular_buffer_t *self) { return self ? self->size : 0; }
 
@@ -148,5 +149,5 @@ void cb_print_stats(const circular_buffer_t *self) {
   printf("\t size: %zu\n", self->size);
   printf("\t head index: %zu\n", self->head);
   printf("\t tail index: %zu\n", self->tail);
-  printf("\t bit mask value: %zu\n", self->mask);
+  printf("\t bit mask value: %zu\n\n", self->mask);
 }

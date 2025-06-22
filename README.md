@@ -1,4 +1,4 @@
-# na-rtos
+# Morph-RT
 
 A custom RTOS kernel built from scratch for ARM Cortex-M4.
 

@@ -1,5 +1,5 @@
-#include "../inc/scheduler.h"
-#include "../inc/task.h"
+#include "scheduler.h"
+#include "task.h"
 // Task Control Block - heart of task management
 
 #include <stdlib.h>

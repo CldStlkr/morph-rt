@@ -1,6 +1,6 @@
-#include "../inc/kernel.h"
-#include "../inc/scheduler.h"
-#include "../inc/task.h"
+#include "kernel.h"
+#include "scheduler.h"
+#include "task.h"
 #include <stddef.h>
 
 // Kernel state - private to this module
@@ -8,9 +8,7 @@ static bool kernel_initialized = false;
 static bool kernel_running = false;
 
 // Private helper functions
-static bool _is_valid_task_context(void) {
-  return kernel_running && current_task != NULL;
-}
+static bool _is_valid_task_context(void) { return kernel_running && current_task != NULL; }
 
 static bool _is_kernel_ready(void) { return kernel_initialized; }
 
@@ -52,9 +50,8 @@ void kernel_start(void) {
 }
 
 // Public task management API
-task_handle_t task_create(task_function_t function, const char *name,
-                          uint16_t stack_size, void *param,
-                          task_priority_t priority) {
+task_handle_t task_create(task_function_t function, const char *name, uint16_t stack_size,
+                          void *param, task_priority_t priority) {
   if (!_is_kernel_ready()) {
     return NULL;
   }
@@ -65,8 +62,7 @@ task_handle_t task_create(task_function_t function, const char *name,
   }
 
   // Create the task using internal function
-  task_handle_t task =
-      task_create_internal(function, name, stack_size, param, priority);
+  task_handle_t task = task_create_internal(function, name, stack_size, param, priority);
 
   if (task) {
     // Add task to scheduler's ready queue

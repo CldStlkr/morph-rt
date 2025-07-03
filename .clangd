@@ -1,0 +1,13 @@
+CompileFlags:
+  Add:
+    - "-Ikernel/inc"
+    - "-Iport/arm-cortex-m4"
+    - "-Itest/inc"
+    - "-Itest/Unity/src"
+    - "-working-directory=/home/ntamtam/Dev/projects/personal/morph-rt/"
+  Remove:
+    - -W*
+
+Diagnostics:
+  Suppress:
+    - unused-includes

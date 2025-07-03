@@ -1,4 +1,4 @@
-#include "../inc/scheduler.h"
+#include "scheduler.h"
 
 #include <stddef.h>
 

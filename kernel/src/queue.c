@@ -4,32 +4,50 @@
 
 typedef struct queue_control_block {
   circular_buffer_t buffer;
-  task_handle_t waiting_senders;
-  task_handle_t waiting_receivers;
+
+  // FIFO wait lists (head/tail)
+  task_handle_t waiting_senders_head;
+  task_handle_t waiting_senders_tail;
+  task_handle_t waiting_receivers_head;
+  task_handle_t waiting_receivers_tail;
+
   // Add mutex/semaphore for thread safety later
 } queue_control_block;
 
-// ======================================== HELPER FUNCTIONS =====================================
+// ============================== HELPER FUNCTIONS ================================
 
-static void add_to_waiting_list(task_handle_t *list_head, task_handle_t task) {
-  if (!task) {
+static inline void wl_enqueue(task_handle_t *head, task_handle_t *tail, task_handle_t t) {
+  if (!t) {
     return;
   }
-  task->next = *list_head;
-  *list_head = task;
+
+  t->next = NULL;
+  if (!*tail) {
+    *head = *tail = t;
+  } else {
+    (*tail)->next = t;
+    *tail = t;
+  }
 }
 
-static task_handle_t remove_from_waiting_list(task_handle_t *list_head) {
-  if (!list_head || !*list_head) {
+static inline task_handle_t wl_dequeue(task_handle_t *head, task_handle_t *tail) {
+  if (!*head) {
     return NULL;
   }
+  task_handle_t t = *head;
 
-  task_handle_t task = *list_head;
-  *list_head = task->next;
-  task->next = NULL;
-  return task;
+  *head = t->next;
+
+  if (!*head) {
+    *tail = NULL; // Is now empty
+  }
+
+  t->next = NULL; // No longer a part of the list
+
+  return t;
 }
-// ===============================================================================================
+
+/* ================================================================================ */
 
 // Public API
 queue_handle_t queue_create(size_t queue_length, size_t item_size) {
@@ -37,7 +55,7 @@ queue_handle_t queue_create(size_t queue_length, size_t item_size) {
     return NULL;
   }
 
-  queue_control_block *qcb = malloc(sizeof(queue_control_block));
+  queue_control_block *qcb = calloc(1, sizeof(queue_control_block));
   if (!qcb) {
     return NULL;
   }
@@ -47,9 +65,6 @@ queue_handle_t queue_create(size_t queue_length, size_t item_size) {
     free(qcb);
     return NULL;
   }
-
-  qcb->waiting_senders = NULL;
-  qcb->waiting_receivers = NULL;
 
   return (queue_handle_t)qcb;
 }
@@ -71,11 +86,11 @@ queue_result_t queue_send(queue_handle_t queue, const void *item, uint32_t timeo
   cb_result_t result = cb_put(&queue->buffer, item);
 
   if (result == CB_SUCCESS) {
-    task_handle_t waiting_receiver = remove_from_waiting_list(&queue->waiting_receivers);
-    if (waiting_receiver) {
-      scheduler_unblock_task(waiting_receiver);
+    task_handle_t receiver =
+        wl_dequeue(&queue->waiting_receivers_head, &queue->waiting_receivers_tail);
+    if (receiver) {
+      scheduler_unblock_task(receiver);
     }
-
     return QUEUE_SUCCESS;
   }
 
@@ -83,6 +98,7 @@ queue_result_t queue_send(queue_handle_t queue, const void *item, uint32_t timeo
     if (timeout == 0) {
       return QUEUE_ERROR_FULL;
     }
+    return QUEUE_ERROR_TIMEOUT;
   }
 
   // TODO: For now, we don't implement blocking with timeout
@@ -91,7 +107,7 @@ queue_result_t queue_send(queue_handle_t queue, const void *item, uint32_t timeo
   // 2. Block current task for 'timeout' ticks
   // 3. When unblocked, retry the operation
 
-  return QUEUE_ERROR_NULL_POINTER;
+  return QUEUE_ERROR_TIMEOUT;
 }
 
 queue_result_t queue_receive(queue_handle_t queue, void *item, uint32_t timeout) {
@@ -102,25 +118,33 @@ queue_result_t queue_receive(queue_handle_t queue, void *item, uint32_t timeout)
   cb_result_t result = cb_get(&queue->buffer, item);
 
   if (result == CB_SUCCESS) {
+    // A slot freed up so wake one sender
+    task_handle_t sender = wl_dequeue(&queue->waiting_senders_head, &queue->waiting_senders_tail);
+    if (sender) {
+      scheduler_unblock_task(sender);
+    }
+    return QUEUE_SUCCESS;
+  }
+
+  if (result == CB_ERROR_BUFFER_EMPTY) {
     if (timeout == 0) {
       return QUEUE_ERROR_EMPTY;
     }
+
+    // TODO: For now, we don't implement blocking with timeout
+    // In full implementation, we would:
+    // 1. Add current task to waiting_receivers list
+    // 2. Block current task for 'timeout' ticks
+    // 3. When unblocked, retry the operation
   }
-
-  // TODO: For now, we don't implement blocking with timeout
-  // In full implementation, we would:
-  // 1. Add current task to waiting_receivers list
-  // 2. Block current task for 'timeout' ticks
-  // 3. When unblocked, retry the operation
-
-  return QUEUE_ERROR_EMPTY;
+  return QUEUE_ERROR_TIMEOUT;
 }
 
 queue_result_t queue_send_immediate(queue_handle_t queue, const void *item) {
   return queue_send(queue, item, 0); // timeout = 0 means non-blocking
 }
-queue_result_t queue_receive_immediate(queue_handle_t queue, const void *item) {
-  return queue_send(queue, item, 0);
+queue_result_t queue_receive_immediate(queue_handle_t queue, void *item) {
+  return queue_receive(queue, item, 0);
 }
 
 bool queue_is_empty(queue_handle_t queue) { return queue ? cb_is_empty(&queue->buffer) : true; }

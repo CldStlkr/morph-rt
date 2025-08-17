@@ -29,6 +29,6 @@ size_t queue_messages_waiting(queue_handle_t queue);
 
 // Non-blocking versions
 queue_result_t queue_send_immediate(queue_handle_t queue, const void *item);
-queue_result_t queue_receive_immediate(queue_handle_t queue, const void *item);
+queue_result_t queue_receive_immediate(queue_handle_t queue, void *item);
 
 #endif // !QUEUE_H

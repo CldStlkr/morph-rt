@@ -7,7 +7,6 @@
 static bool kernel_initialized = false;
 static bool kernel_running = false;
 
-// Private helper functions
 static bool _is_valid_task_context(void) { return kernel_running && current_task != NULL; }
 
 static bool _is_kernel_ready(void) { return kernel_initialized; }
@@ -15,10 +14,9 @@ static bool _is_kernel_ready(void) { return kernel_initialized; }
 // Public kernel API
 void kernel_init(void) {
   if (kernel_initialized) {
-    return; // Already initialized
+    return;
   }
 
-  // Initialize the scheduler
   scheduler_init();
 
   kernel_initialized = true;
@@ -27,14 +25,13 @@ void kernel_init(void) {
 
 void kernel_start(void) {
   if (!kernel_initialized) {
-    // Critical error - kernel not initialized
     while (1) {
       // Infinite loop - system cannot start
     }
   }
 
   if (kernel_running) {
-    return; // Already running
+    return;
   }
 
   kernel_running = true;

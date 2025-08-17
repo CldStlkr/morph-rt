@@ -8,17 +8,18 @@ typedef struct task_control_block {
   // CPU context (stack pointer, registers)
   uint32_t *stack_pointer;
   uint32_t *stack_base;
-  uint16_t stack_size; // in bytes
+  uint32_t stack_size; // in bytes
 
   // Task information
   char name[16];
   task_priority_t priority;
   task_state_t state;
-
   uint32_t delay_ticks;
 
-  // Linked list for scheduler queues
-  struct task_control_block *next;
+  // Seperate links for each kernel list
+  list_node_t ready_link; // Per-priority ready queue
+  list_node_t delay_link; // Delayed list
+  list_node_t wait_link; // Waiter list (queue/mutex/sem)
 
   // Statistics (debugging)
   uint32_t run_count;     // Number of times scheduled

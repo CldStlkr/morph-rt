@@ -24,21 +24,31 @@ typedef struct circular_buffer_t {
   size_t mask; // Bit mask
 } circular_buffer_t;
 
-cb_result_t cb_init(circular_buffer_t *cb, size_t capacity, size_t element_size);
+cb_result_t cb_init(circular_buffer_t *cb, size_t capacity,
+                    size_t element_size);
 cb_result_t cb_free(circular_buffer_t *self);
 cb_result_t cb_clear(circular_buffer_t *self);
-
-bool cb_is_empty(const circular_buffer_t *self);
-bool cb_is_full(const circular_buffer_t *self);
 
 cb_result_t cb_put(circular_buffer_t *self, const void *data);
 cb_result_t cb_get(circular_buffer_t *self, void *data_out);
 cb_result_t cb_peek(const circular_buffer_t *self, void *data_out);
 
-size_t cb_capacity(const circular_buffer_t *self);
-size_t cb_size(const circular_buffer_t *self);
-size_t cb_available(const circular_buffer_t *self);
-
 void cb_print_stats(const circular_buffer_t *self); // Debug purposes
+
+static inline bool cb_is_empty(const circular_buffer_t *self) {
+  return self && (self->size == 0);
+}
+static inline bool cb_is_full(const circular_buffer_t *self) {
+  return self && (self->size == self->capacity);
+}
+static inline size_t cb_capacity(const circular_buffer_t *self) {
+  return self ? self->capacity : 0;
+}
+static inline size_t cb_size(const circular_buffer_t *self) {
+  return self ? self->size : 0;
+}
+static inline size_t cb_available(const circular_buffer_t *self) {
+  return self ? (self->capacity - self->size) : 0;
+}
 
 #endif // !CIRCULAR_BUFFER_H

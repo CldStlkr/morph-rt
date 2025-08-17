@@ -2,7 +2,8 @@
 #include <stdio.h>
 #include <string.h>
 
-cb_result_t cb_init(circular_buffer_t *cb, size_t capacity, size_t element_size) {
+cb_result_t cb_init(circular_buffer_t *cb, size_t capacity,
+                    size_t element_size) {
 
   if (!cb || capacity == 0 || element_size == 0) {
     return CB_ERROR_NULL_POINTER;
@@ -64,20 +65,6 @@ cb_result_t cb_free(circular_buffer_t *self) {
   return CB_SUCCESS;
 }
 
-bool cb_is_empty(const circular_buffer_t *self) {
-  if (!self) {
-    return false;
-  }
-  return self->size == 0;
-}
-
-bool cb_is_full(const circular_buffer_t *self) {
-  if (!self) {
-    return false;
-  }
-  return self->size == self->capacity;
-}
-
 cb_result_t cb_put(circular_buffer_t *self, const void *data) {
   if (!self || !data) {
     return CB_ERROR_NULL_POINTER;
@@ -130,14 +117,6 @@ cb_result_t cb_peek(const circular_buffer_t *self, void *data_out) {
   memcpy(data_out, src, self->element_size);
 
   return CB_SUCCESS;
-}
-
-size_t cb_capacity(const circular_buffer_t *self) { return self ? self->capacity : 0; }
-
-size_t cb_size(const circular_buffer_t *self) { return self ? self->size : 0; }
-
-size_t cb_available(const circular_buffer_t *self) {
-  return self ? self->capacity - self->size : 0;
 }
 
 void cb_print_stats(const circular_buffer_t *self) {

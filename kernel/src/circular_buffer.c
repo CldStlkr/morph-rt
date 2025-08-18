@@ -5,8 +5,10 @@
 cb_result_t cb_init(circular_buffer_t *cb, size_t capacity,
                     size_t element_size) {
 
-  if (!cb || capacity == 0 || element_size == 0) {
-    return CB_ERROR_NULL_POINTER;
+  if (!cb) return CB_ERROR_NULL_POINTER;
+
+  if (capacity == 0 || element_size == 0) {
+    return CB_ERROR_INVALID_SIZE;
   }
 
   size_t new_capacity;
@@ -104,15 +106,11 @@ cb_result_t cb_get(circular_buffer_t *self, void *data_out) {
 }
 
 cb_result_t cb_peek(const circular_buffer_t *self, void *data_out) {
-  if (!self || !data_out) {
-    return CB_ERROR_NULL_POINTER;
-  }
-  if (cb_is_empty(self)) {
-    return CB_ERROR_BUFFER_EMPTY;
-  }
+  if (!self || !data_out) return CB_ERROR_NULL_POINTER;
+  if (cb_is_empty(self)) return CB_ERROR_BUFFER_EMPTY;
 
-  uint8_t *buffer_base = (uint8_t *)self->buffer;
-  uint8_t *src = buffer_base + (self->head * self->element_size);
+  const uint8_t *buffer_base = (const uint8_t *)self->buffer;
+  const uint8_t *src = buffer_base + (self->head * self->element_size);
 
   memcpy(data_out, src, self->element_size);
 

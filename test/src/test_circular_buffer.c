@@ -81,7 +81,7 @@ void test_cb_should_maintain_fifo_order(void) {
   int output_values[3] = {0};
 
   // Put multiple values
-  for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < 3; ++i) {
     cb_result_t result = cb_put(&test_cb, &input_values[i]);
     TEST_ASSERT_EQUAL(CB_SUCCESS, result);
   }
@@ -89,7 +89,7 @@ void test_cb_should_maintain_fifo_order(void) {
   TEST_ASSERT_EQUAL(3, cb_size(&test_cb));
 
   // Get values and verify FIFO order
-  for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < 3; ++i) {
     cb_result_t result = cb_get(&test_cb, &output_values[i]);
     TEST_ASSERT_EQUAL(CB_SUCCESS, result);
     TEST_ASSERT_EQUAL(input_values[i], output_values[i]);
@@ -103,7 +103,7 @@ void test_cb_should_handle_buffer_full_condition(void) {
   int values[] = {1, 2, 3, 4};
 
   // Fill the buffer completely
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 4; ++i) {
     cb_result_t result = cb_put(&test_cb, &values[i]);
     TEST_ASSERT_EQUAL(CB_SUCCESS, result);
   }
@@ -138,13 +138,13 @@ void test_cb_should_handle_wraparound(void) {
   cb_init(&test_cb, 4, sizeof(int));
 
   // Fill buffer completely
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 4; ++i) {
     int value = i + 100; // 100, 101, 102, 103
     cb_put(&test_cb, &value);
   }
 
   // Now do several add/remove cycles to force wraparound
-  for (int cycle = 0; cycle < 5; cycle++) {
+  for (int cycle = 0; cycle < 5; ++cycle) {
     // Remove one element
     int removed_value;
     cb_result_t get_result = cb_get(&test_cb, &removed_value);

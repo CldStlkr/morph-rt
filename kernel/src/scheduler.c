@@ -1,23 +1,35 @@
 #include "scheduler.h"
-
 #include <stddef.h>
 
 // Ready queues - one per priority level
-task_handle_t ready_queues[MAX_PRIORITY + 1] = {NULL};
+list_head_t ready_queues[MAX_PRIORITY + 1];
 task_handle_t current_task = NULL;
 task_handle_t next_task = NULL;
 
-static task_handle_t delayed_tasks = NULL;
+static void delayed_insert_sorted(list_head_t *list, task_handle_t t) {
+  list_head_t *pos;
+  list_iter(pos, list) {
+    task_handle_t q = tcb_from_delay_link(pos);
+    if (time_lte(t->wake_tick, q->wake_tick)) {
+      list_insert_before(&t->delay_link, pos);
+      return;
+    }
+  }
+  list_insert_tail(list, &t->delay_link);
+}
 
 // Core scheduler functions
 void scheduler_init(void) {
-  for (int i = 0; i <= MAX_PRIORITY; i++) {
-    ready_queues[i] = NULL;
+  for (int i = 0; i <= MAX_PRIORITY; ++i) {
+    list_init(&ready_queues[i]);
   }
+
+  list_init(&delayed_cur);
+  list_init(&delayed_ovf);
+  tick_now = 0;
 
   current_task = NULL;
   next_task = NULL;
-  delayed_tasks = NULL;
 }
 
 void scheduler_start(void) {
@@ -29,9 +41,8 @@ void scheduler_start(void) {
     // In real implementation, I would need to either enter low-power mode
     // or trigger system reset
 
-    while (1) {
-      // Infinite loop
-    }
+    while (1)
+      ;
   }
 
   current_task->state = TASK_RUNNING;
@@ -50,25 +61,14 @@ void scheduler_start(void) {
 
 task_handle_t scheduler_get_next_task(void) {
   // Find highest priority (lowest number) that has tasks
-  for (task_priority_t priority = 0; priority <= MAX_PRIORITY; priority++) {
-    if (ready_queues[priority] != NULL) {
-      // Get the task at the head of this priority queue
-      task_handle_t task = ready_queues[priority];
+  for (task_priority_t priority = 0; priority <= MAX_PRIORITY; ++priority) {
+    if (!list_is_empty(&ready_queues[priority])) {
+      // Get first task from this priority
+      list_head_t *first = ready_queues[priority].next;
+      task_handle_t task = tcb_from_ready_link(first);
 
-      if (task->next != NULL) {
-        // Next task becomes head if present
-        ready_queues[priority] = task->next;
-
-        // Find end of queue and add current_task to the back for Round Robin
-        task_handle_t tail = ready_queues[priority];
-        while (tail->next != NULL) {
-          tail = tail->next;
-        }
-        tail->next = task;
-        task->next = NULL;
-      }
-      // If task->next is NULL, this is the only task at this priority,
-      // so no need to rearange queue
+      // Remove from head and add to tail (round-robin)
+      list_move_to_tail(&ready_queues[priority], first);
 
       return task;
     }
@@ -77,63 +77,26 @@ task_handle_t scheduler_get_next_task(void) {
   return NULL;
 }
 void scheduler_add_task(task_handle_t task) {
-  if (!task) {
-    return;
-  }
+  if (!task) return;
 
-  task_priority_t priority = task->priority;
   task->state = TASK_READY;
 
-  // Add to the end of the priority queue (FIFO within priority)
-  if (ready_queues[priority] == NULL) {
-    // First task at this priority
-    ready_queues[priority] = task;
-  } else {
-    // Find end and append
-    task_handle_t tail = ready_queues[priority];
-    while (tail->next != NULL) {
-      tail = tail->next;
-    }
-    tail->next = task;
-  }
-  task->next = NULL;
+  list_insert_tail(&ready_queues[task->priority], &task->ready_link);
 }
+
 void scheduler_remove_task(task_handle_t task) {
-  if (!task) {
-    return;
+  if (!task) return;
+
+  if (!list_is_empty(&task->ready_link)) {
+    list_remove(&task->ready_link);
   }
 
-  task_priority_t priority = task->priority;
-
-  // Remove from ready_queue
-  if (ready_queues[priority] == task) {
-    // Task is at the head, we make next (its ok if NULL) new head
-    ready_queues[priority] = task->next;
-  } else {
-    task_handle_t current = ready_queues[priority];
-    while (current && current->next != task) {
-      current = current->next;
-    }
-    if (current) {
-      // If current then we know current->next == task
-      current->next = task->next;
-    }
+  if (!list_is_empty(&task->delay_link)) {
+    list_remove(&task->delay_link);
   }
 
-  // Also remove from delayed tasks list if present
-  if (delayed_tasks == task) {
-    delayed_tasks = task->next;
-  } else {
-    task_handle_t current = delayed_tasks;
-    while (current && current->next != task) {
-      current = current->next;
-    }
-    if (current) {
-      current->next = task->next;
-    }
-  }
-
-  task->next = NULL;
+  // Note: Don't remove from wait_link
+  // Handled by specific sync object (semaphore, queue, etc.)
 }
 
 // Task state transitions
@@ -145,11 +108,8 @@ void scheduler_block_current_task(void) {
 }
 
 void scheduler_unblock_task(task_handle_t task) {
-  if (!task) {
-    return;
-  }
+  if (!task) return;
 
-  task->state = TASK_READY;
   scheduler_add_task(task);
 }
 
@@ -160,79 +120,99 @@ void scheduler_yield(void) {
   next_task = scheduler_get_next_task();
 }
 
-// Timer tick handler - processes delayed tasks
-void scheduler_tick(void) {
-  task_handle_t current = delayed_tasks;
-  task_handle_t prev = NULL;
+// Helper function for task_delay() implementation
+void scheduler_delay_current_task(uint32_t ticks) {
+  if (!current_task || ticks == 0) return;
 
-  while (current != NULL) {
-    current->delay_ticks--;
-
-    if (current->delay_ticks == 0) {
-      // Task delay has expired, move back to ready queue
-      task_handle_t task_to_unblock = current;
-
-      // Remove from delayed list
-      if (prev == NULL) {
-        delayed_tasks = current->next;
-      } else {
-        prev->next = current->next;
-      }
-
-      current = current->next;
-
-      // Add back to ready_queue
-      scheduler_unblock_task(task_to_unblock);
-    } else {
-      prev = current;
-      current = current->next;
-    }
+  // Remove from ready queue
+  if (!list_is_empty(&current_task->ready_link)) {
+    list_remove(&current_task->ready_link);
   }
 
-  // Check if we need to preempt this current task
-  if (current_task && scheduler_has_ready_tasks()) {
-    task_priority_t highest_ready = scheduler_get_highest_priority();
+  current_task->state = TASK_BLOCKED;
 
-    // Lower number means higher priority
-    if (highest_ready < current_task->priority) {
-      // Higher priority task is ready, trigger preemption
-      scheduler_yield();
+  // KERNEL_CRITICAL_BEGIN();
+  uint32_t now = tick_now;     // read once
+  uint32_t wake = now + ticks; // automatically wraps
+  current_task->wake_tick = wake;
+
+  list_head_t *L = time_lt(wake, now) ? &delayed_ovf : &delayed_cur;
+
+  delayed_insert_sorted(L, current_task);
+  // KERNEL_CRITICAL_END();
+
+  scheduler_yield();
+}
+
+// Timer tick handler - processes delayed tasks
+void scheduler_tick(void) {
+  uint32_t now = ++tick_now;
+
+  // Release all tasks whose wake_tick <= now from current list
+  while (!list_is_empty(&delayed_cur)) {
+    task_handle_t t = tcb_from_delay_link(delayed_cur.next); // head
+    if (time_gt(t->wake_tick, now)) break;
+
+    list_remove(&t->delay_link);
+    scheduler_expire_timeout(t);
+  }
+
+  // On wrap to 0, swap lists so former overflow becomes current
+  if (now == 0) {
+    list_head_t tmp = delayed_cur;
+    delayed_cur = delayed_ovf;
+    delayed_ovf = tmp;
+
+    // drain again so tasks with wake_tick == 0 don't wait one extra tick
+    while (!list_is_empty(&delayed_cur)) {
+      task_handle_t t = tcb_from_delay_link(delayed_cur.next);
+      if (time_gt(t->wake_tick, now)) break;
+      list_remove(&t->delay_link);
+      scheduler_expire_timeout(t);
     }
   }
 }
 
-// Helper function for task_delay() implementation
-void scheduler_delay_current_task(uint32_t ticks) {
-  if (!current_task || ticks == 0) {
-    return;
+void scheduler_set_timeout(task_handle_t t, uint32_t wake_tick) {
+  // KERNEL_CRITICAL_BEGIN();
+  uint32_t now = tick_now;
+  t->wake_tick = wake_tick;
+  list_head_t *L = time_lt(wake_tick, now) ? &delayed_ovf : &delayed_cur;
+  delayed_insert_sorted(L, t);
+  // KERNEL_CRITICAL_END();
+}
+
+void scheduler_expire_timeout(task_handle_t t) {
+  if (t->waiting_on) {
+    if (t->wait_link.next != &t->wait_link) {
+      list_remove(&t->wait_link);
+    }
+    t->waiting_on = NULL;
   }
-  current_task->delay_ticks = ticks;
-  current_task->state = TASK_BLOCKED;
+  scheduler_add_task(t);
+}
 
-  // Remove from ready queue
-  scheduler_remove_task(current_task);
-
-  // Add to delayed tasks list
-  current_task->next = delayed_tasks;
-  delayed_tasks = current_task;
-
-  // Trigger context switch to next ready task
-  scheduler_yield();
+void scheduler_cancel_timeout(task_handle_t t) {
+  // KERNEL_CRITICAL_BEGIN();
+  if (!list_is_empty(&t->delay_link)) {
+    list_remove(&t->delay_link);
+  }
+  // KERNEL_CRITICAL_END();
 }
 
 // Priority management
 task_priority_t scheduler_get_highest_priority(void) {
-  for (task_priority_t priority = 0; priority <= MAX_PRIORITY; priority++) {
-    if (ready_queues[priority] != NULL) {
+  for (task_priority_t priority = 0; priority <= MAX_PRIORITY; ++priority) {
+    if (!list_is_empty(&ready_queues[priority])) {
       return priority;
     }
   }
-  return MAX_PRIORITY; // No ready tasks
+  return MAX_PRIORITY;
 }
 
 bool scheduler_has_ready_tasks(void) {
-  for (task_priority_t priority = 0; priority <= MAX_PRIORITY; priority++) {
-    if (ready_queues[priority] != NULL) {
+  for (task_priority_t priority = 0; priority <= MAX_PRIORITY; ++priority) {
+    if (!list_is_empty(&ready_queues[priority])) {
       return true;
     }
   }

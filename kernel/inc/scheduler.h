@@ -2,9 +2,16 @@
 #define SCHEDULER_H
 
 #include "task.h"
+#include "time_utils.h"
 
 // Ready queues - one per priority level
-extern task_handle_t ready_queues[MAX_PRIORITY + 1];
+extern list_head_t ready_queues[MAX_PRIORITY + 1];
+// Delayed task lists
+extern list_head_t delayed_cur; // wake_tick in current epoch
+extern list_head_t delayed_ovf; // wake_tick after wrap
+
+extern volatile uint32_t tick_now;
+
 extern task_handle_t current_task;
 extern task_handle_t next_task;
 
@@ -23,6 +30,11 @@ void scheduler_delay_current_task(uint32_t ticks);
 
 // Timer tick processing
 void scheduler_tick(void); // Called from timer interrupt
+
+// Arms timeout for a given task at absolute wake_tick
+void scheduler_set_timeout(task_handle_t t, uint32_t wake_tick);
+void scheduler_expire_timeout(task_handle_t t);
+void scheduler_cancel_timeout(task_handle_t t);
 
 // Priority management
 task_priority_t scheduler_get_highest_priority(void);

@@ -31,6 +31,7 @@ task_handle_t task_create_internal(task_function_t function, const char *name,
   tcb->priority = priority;
   tcb->state = TASK_READY;
   tcb->wake_tick = 0;
+  tcb->wake_reason = WAKE_REASON_NONE;
   tcb->waiting_on = NULL;
   tcb->run_count = 0;
   tcb->total_runtime = 0;

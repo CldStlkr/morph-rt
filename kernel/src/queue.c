@@ -1,3 +1,4 @@
+#include "critical.h"
 #include "queue.h"
 #include "scheduler.h"
 #include "task.h"
@@ -32,6 +33,7 @@ static inline void wake_one(list_head_t *L) {
   if (!t) return;
 
   t->waiting_on = NULL;
+  t->wake_reason = WAKE_REASON_DATA_AVAILABLE;
 
   // If task had timeout armed, cancel from delayed lists
   scheduler_cancel_timeout(t);
@@ -74,45 +76,51 @@ queue_result_t queue_send(queue_handle_t queue, const void *item,
   uint32_t deadline = start + timeout;
 
   for (;;) {
-    // KERNEL_CRITICAL_BEGIN();
+    KERNEL_CRITICAL_BEGIN();
 
     if (!cb_is_full(&queue->buffer)) {
       if (cb_put(&queue->buffer, item) != CB_SUCCESS) {
         // Shouldn't happen given cb_is_full() check
-        // KERNEL_CRITICAL_END();
+        KERNEL_CRITICAL_END();
         return QUEUE_ERROR_FULL;
       }
 
       if (!list_is_empty(&queue->waiting_receivers)) {
         wake_one(&queue->waiting_receivers);
       }
-      // KERNEL_CRITICAL_END();
+      KERNEL_CRITICAL_END();
       return QUEUE_SUCCESS;
     }
 
     if (timeout == 0) {
-      // KERNEL_CRITICAL_END();
+      KERNEL_CRITICAL_END();
       return QUEUE_ERROR_FULL;
     }
 
     uint32_t now = tick_now;
     uint32_t remain = ticks_until(deadline, now);
     if (remain == 0) {
-      // KERNEL_CRITICAL_END();
+      KERNEL_CRITICAL_END();
       return QUEUE_ERROR_TIMEOUT;
     }
 
     // Block current task as a SENDER with timeout
     current_task->waiting_on = queue;
     waitlist_push_tail(&queue->waiting_senders, current_task);
-
     uint32_t wake = now + remain;
     scheduler_set_timeout(current_task, wake);
-
     task_set_state(current_task, TASK_BLOCKED);
-    // KERNEL_CRITICAL_END();
-    scheduler_yield();                         // switch out
-    timeout = ticks_until(deadline, tick_now); // recompute and retry
+    KERNEL_CRITICAL_END();
+    scheduler_yield(); // switch out
+
+    if (current_task->wake_reason == WAKE_REASON_TIMEOUT) {
+      return QUEUE_ERROR_TIMEOUT;
+    }
+
+    timeout = ticks_until(deadline, tick_now);
+    if (timeout == 0) {
+      return QUEUE_ERROR_TIMEOUT;
+    }
   }
 }
 
@@ -124,12 +132,12 @@ queue_result_t queue_receive(queue_handle_t queue, void *item,
   uint32_t deadline = start + timeout;
 
   for (;;) {
-    // KERNEL_CRITICAL_BEGIN();
+    KERNEL_CRITICAL_BEGIN();
 
     if (!cb_is_empty(&queue->buffer)) {
       if (cb_get(&queue->buffer, item) != CB_SUCCESS) {
         // Shouldn't happen given cb_is_empty() check
-        // KERNEL_CRITICAL_END();
+        KERNEL_CRITICAL_END();
         return QUEUE_ERROR_EMPTY;
       }
 
@@ -137,34 +145,40 @@ queue_result_t queue_receive(queue_handle_t queue, void *item,
       if (!list_is_empty(&queue->waiting_senders)) {
         wake_one(&queue->waiting_senders);
       }
-      // KERNEL_CRITICAL_END();
+      KERNEL_CRITICAL_END();
       return QUEUE_SUCCESS;
     }
 
     if (timeout == 0) {
-      // KERNEL_CRITICAL_END();
+      KERNEL_CRITICAL_END();
       return QUEUE_ERROR_EMPTY;
     }
 
     uint32_t now = tick_now;
     uint32_t remain = ticks_until(deadline, now);
     if (remain == 0) {
-      // KERNEL_CRITICAL_END();
+      KERNEL_CRITICAL_END();
       return QUEUE_ERROR_TIMEOUT;
     }
 
     // Block current task as a RECEIVER with timeout
     current_task->waiting_on = queue;
     waitlist_push_tail(&queue->waiting_receivers, current_task);
-
     uint32_t wake = now + remain;
     scheduler_set_timeout(current_task, wake);
-
     task_set_state(current_task, TASK_BLOCKED);
-    // KERNEL_CRITICAL_END();
+    KERNEL_CRITICAL_END();
 
-    scheduler_yield();                         // switch out
-    timeout = ticks_until(deadline, tick_now); // recompute and retry
+    scheduler_yield(); // switch out
+
+    if (current_task->wake_reason == WAKE_REASON_TIMEOUT) {
+      return QUEUE_ERROR_TIMEOUT;
+    }
+
+    timeout = ticks_until(deadline, tick_now);
+    if (timeout == 0) {
+      return QUEUE_ERROR_TIMEOUT;
+    }
   }
 }
 

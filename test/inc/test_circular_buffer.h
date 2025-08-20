@@ -24,7 +24,8 @@ void test_cb_should_handle_wraparound(void);
 void test_cb_peek_should_not_modify_buffer(void);
 void test_cb_capacity_functions(void);
 
-// Test suite runner function (optional convenience function)
+void cb_test_setup(void);
+void cb_test_teardown(void);
 void run_circular_buffer_tests(void);
 
 #endif // TEST_CIRCULAR_BUFFER_H

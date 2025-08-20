@@ -48,7 +48,8 @@ void test_task_stack_pointer_should_be_within_bounds(void);
 void test_multiple_tasks_should_have_separate_stacks(void);
 void test_task_lifecycle_create_to_delete(void);
 
-// Test suite runner function
+void task_test_setup(void);
+void task_test_teardown(void);
 void run_task_tests(void);
 
 #endif // TEST_TASK_H

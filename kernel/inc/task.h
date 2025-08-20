@@ -10,6 +10,13 @@
 #define tcb_from_delay_link(ptr)                                               \
   container_of(ptr, task_control_block, delay_link)
 
+typedef enum {
+  WAKE_REASON_DATA_AVAILABLE,
+  WAKE_REASON_TIMEOUT,
+  WAKE_REASON_SIGNAL,
+  WAKE_REASON_NONE
+} wake_reason_t;
+
 // Task Control Block
 typedef struct task_control_block {
   // CPU context (stack pointer, registers)
@@ -26,6 +33,7 @@ typedef struct task_control_block {
   uint32_t wake_tick;
 
   void *waiting_on; // Pointer to semaphore/queue/mutex we are waiting on
+  wake_reason_t wake_reason;
 
   // Statistics (debugging)
   uint32_t run_count;     // Number of times scheduled

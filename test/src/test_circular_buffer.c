@@ -42,12 +42,12 @@ void test_cb_init_should_fail_with_null_pointer(void) {
 
 void test_cb_init_should_fail_with_zero_capacity(void) {
   cb_result_t result = cb_init(&test_cb, 0, sizeof(int));
-  TEST_ASSERT_EQUAL(CB_ERROR_NULL_POINTER, result);
+  TEST_ASSERT_EQUAL(CB_ERROR_INVALID_SIZE, result);
 }
 
 void test_cb_init_should_fail_with_zero_element_size(void) {
   cb_result_t result = cb_init(&test_cb, 8, 0);
-  TEST_ASSERT_EQUAL(CB_ERROR_NULL_POINTER, result);
+  TEST_ASSERT_EQUAL(CB_ERROR_INVALID_SIZE, result);
 }
 
 void test_cb_put_and_get_single_element(void) {
@@ -213,7 +213,8 @@ void test_cb_capacity_functions(void) {
 // TEST RUNNER
 //=============================================================================
 
-void run_circular_buffer_tests(void) {
+int main(void) {
+  UNITY_BEGIN();
 
   // Basic functionality tests
   RUN_TEST(test_cb_init_should_succeed_with_valid_parameters);
@@ -233,4 +234,6 @@ void run_circular_buffer_tests(void) {
   // Additional functionality
   RUN_TEST(test_cb_peek_should_not_modify_buffer);
   RUN_TEST(test_cb_capacity_functions);
+
+  return UNITY_END();
 }

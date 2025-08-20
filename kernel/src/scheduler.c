@@ -187,6 +187,7 @@ void scheduler_expire_timeout(task_handle_t t) {
     if (t->wait_link.next != &t->wait_link) {
       list_remove(&t->wait_link);
     }
+    t->wake_reason = WAKE_REASON_TIMEOUT;
     t->waiting_on = NULL;
   }
   scheduler_add_task(t);

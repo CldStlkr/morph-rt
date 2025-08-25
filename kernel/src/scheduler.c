@@ -1,3 +1,4 @@
+#include "port.h"
 #include "scheduler.h"
 #include <stddef.h>
 
@@ -33,13 +34,16 @@ void scheduler_init(void) {
 }
 
 void scheduler_start(void) {
-  // Find the first current task to run
+  // Set PendSV to lowest priority
+  set_pendsv_priority();
+
+  // Initialize SysTick 1ms (1000Hz)
+  systick_init(1000);
+
   current_task = scheduler_get_next_task();
 
   if (!current_task) {
-    // No tasks to run - this is typically a critical error in embedded
-    // In real implementation, I would need to either enter low-power mode
-    // or trigger system reset
+    // No tasks to run - critical error
 
     while (1)
       ;
@@ -47,16 +51,11 @@ void scheduler_start(void) {
 
   current_task->state = TASK_RUNNING;
 
-  // This is where we would jump to the task's context
-  // In real implementation, this would be assembly code that:
-  // 1. Loads the task's stack pointer
-  // 2. Restores the task's CPU registers
-  // 3. Returns to the task's program counter
-
-  // For now, placeholder - implement actual context switch later
-  // start_first_task(current_task->stack_pointer); // Assembly function
+  start_first_task(current_task->stack_pointer);
 
   // This function should never return
+  while (1)
+    ;
 }
 
 task_handle_t scheduler_get_next_task(void) {
@@ -114,10 +113,12 @@ void scheduler_unblock_task(task_handle_t task) {
 }
 
 void scheduler_yield(void) {
-  // This will trigger a context switch to the next ready task
-  // The actual context switch will be handled by the kernel
-  // For now, just find next task
   next_task = scheduler_get_next_task();
+
+  // Only switch if there is a different task to run
+  if (next_task && next_task != current_task) {
+    trigger_context_switch();
+  }
 }
 
 // Helper function for task_delay() implementation

@@ -46,6 +46,10 @@ typedef struct task_control_block {
 
 } task_control_block;
 
+// static task_control_block task_pool[MAX_TASKS];
+// static bool task_used[MAX_TASKS];
+// static uint8_t task_stacks[MAX_TASKS][DEFAULT_STACK_SIZE];
+
 // Task management functions
 task_handle_t task_create_internal(task_function_t function, const char *name,
                                    uint16_t stack_size, void *param,

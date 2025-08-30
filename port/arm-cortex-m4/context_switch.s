@@ -1,6 +1,6 @@
 /* port/arm-cortex-m4/context_switch.s
  * ARM Cortex-M4 Context Switching for STM32F4
- * Compatible with your morph-rt RTOS
+ *
  */
 
 .syntax unified

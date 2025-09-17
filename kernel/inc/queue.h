@@ -2,6 +2,16 @@
 #define QUEUE_H
 
 #include "circular_buffer.h"
+#include "list.h"
+
+typedef struct queue_control_block {
+  circular_buffer_t buffer;
+
+  list_head_t waiting_senders;   // Tasks blocked in queue_send()
+  list_head_t waiting_receivers; // Tasks blocked in queue_receive()
+
+  // Add mutex/semaphore for thread safety later
+} queue_control_block;
 
 // Opaque pointers
 typedef struct queue_control_block *queue_handle_t;

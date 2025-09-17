@@ -4,7 +4,7 @@ CompileFlags:
     - "-Iport/arm-cortex-m4"
     - "-Itest/inc"
     - "-Itest/Unity/src"
-    - "-working-directory=/home/ntamtam/Dev/projects/personal/morph-rt/"
+    - "-working-directory=/home/neel/Dev/personal/morph-rt/"
   Remove:
     - -W*
 

@@ -5,15 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct queue_control_block {
-  circular_buffer_t buffer;
-
-  list_head_t waiting_senders;   // Tasks blocked in queue_send()
-  list_head_t waiting_receivers; // Tasks blocked in queue_receive()
-
-  // Add mutex/semaphore for thread safety later
-} queue_control_block;
-
 // ============================== HELPER FUNCTIONS =============================
 
 static inline task_handle_t waitlist_pop_head(list_head_t *L) {

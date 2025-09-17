@@ -1,3 +1,4 @@
+#include "critical.h"
 #include "scheduler.h"
 #include "task.h"
 // Task Control Block
@@ -50,9 +51,10 @@ void task_delete_internal(task_handle_t task) {
     return;
   }
 
-  scheduler_remove_task(task);
-
+  KERNEL_CRITICAL_BEGIN();
   task->state = TASK_DELETED;
+  scheduler_remove_task(task);
+  KERNEL_CRITICAL_END();
 
   if (task->stack_base) {
     free(task->stack_base);
@@ -69,6 +71,7 @@ void task_set_state(task_handle_t task, task_state_t state) {
 
   task->state = state;
 }
+
 task_state_t task_get_state(task_handle_t task) {
   if (!task) {
     return TASK_DELETED;

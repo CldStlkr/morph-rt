@@ -21,7 +21,7 @@ static void delayed_insert_sorted(list_head_t *list, task_handle_t t) {
 
 // Core scheduler functions
 void scheduler_init(void) {
-  for (int i = 0; i <= MAX_PRIORITY; ++i) {
+  for (int i = 0; i <= MAX_PRIORITY; i++) {
     list_init(&ready_queues[i]);
   }
 
@@ -60,7 +60,7 @@ void scheduler_start(void) {
 
 task_handle_t scheduler_get_next_task(void) {
   // Find highest priority (lowest number) that has tasks
-  for (task_priority_t priority = 0; priority <= MAX_PRIORITY; ++priority) {
+  for (task_priority_t priority = 0; priority <= MAX_PRIORITY; priority++) {
     if (!list_is_empty(&ready_queues[priority])) {
       // Get first task from this priority
       list_head_t *first = ready_queues[priority].next;
@@ -147,7 +147,9 @@ void scheduler_delay_current_task(uint32_t ticks) {
 
 // Timer tick handler - processes delayed tasks
 void scheduler_tick(void) {
-  uint32_t now = ++tick_now;
+  // KERNEL_CRITICAL_BEGIN();
+  uint32_t now = tick_now++;
+  // KERNEL_CRITICAL_END();
 
   // Release all tasks whose wake_tick <= now from current list
   while (!list_is_empty(&delayed_cur)) {
@@ -204,7 +206,7 @@ void scheduler_cancel_timeout(task_handle_t t) {
 
 // Priority management
 task_priority_t scheduler_get_highest_priority(void) {
-  for (task_priority_t priority = 0; priority <= MAX_PRIORITY; ++priority) {
+  for (task_priority_t priority = 0; priority <= MAX_PRIORITY; priority++) {
     if (!list_is_empty(&ready_queues[priority])) {
       return priority;
     }
@@ -213,7 +215,7 @@ task_priority_t scheduler_get_highest_priority(void) {
 }
 
 bool scheduler_has_ready_tasks(void) {
-  for (task_priority_t priority = 0; priority <= MAX_PRIORITY; ++priority) {
+  for (task_priority_t priority = 0; priority <= MAX_PRIORITY; priority++) {
     if (!list_is_empty(&ready_queues[priority])) {
       return true;
     }

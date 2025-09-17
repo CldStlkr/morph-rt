@@ -51,6 +51,7 @@ test/results/
 *~
 .DS_Store
 Thumbs.db
+.cache/
 
 # ARM/Embedded specific
 *.axf

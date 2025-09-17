@@ -1,13 +1,11 @@
 #ifndef KERNEL_H
 #define KERNEL_H
 
+#include "config.h"
 #include <stdbool.h>
 #include <stdint.h>
 
 // RTOS Configuration
-#define MAX_TASKS 8
-#define DEFAULT_STACK_SIZE 1024
-#define MAX_PRIORITY 7
 
 typedef enum task_state_t {
   TASK_READY,

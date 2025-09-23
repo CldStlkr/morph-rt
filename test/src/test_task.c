@@ -1,3 +1,4 @@
+#include "memory.h"
 #include "task.h"
 #include "test_task.h"
 #include "unity.h"

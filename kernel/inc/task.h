@@ -17,7 +17,6 @@ typedef enum {
   WAKE_REASON_NONE
 } wake_reason_t;
 
-// Task Control Block
 typedef struct task_control_block {
   // CPU context (stack pointer, registers)
   uint32_t *stack_pointer;
@@ -29,28 +28,20 @@ typedef struct task_control_block {
   task_priority_t priority;
   task_state_t state;
 
-  // Absolute wake time (tick when the task should unblock)
   uint32_t wake_tick;
 
   void *waiting_on; // Pointer to semaphore/queue/mutex we are waiting on
   wake_reason_t wake_reason;
 
-  // Statistics (debugging)
   uint32_t run_count;     // Number of times scheduled
   uint32_t total_runtime; // Total CPU time
 
-  // Seperate links for each kernel list
   list_head_t ready_link; // Per-priority ready queue
   list_head_t delay_link; // Delayed list
   list_head_t wait_link;  // Waiter list (queue/mutex/sem)
 
 } task_control_block;
 
-// static task_control_block task_pool[MAX_TASKS];
-// static bool task_used[MAX_TASKS];
-// static uint8_t task_stacks[MAX_TASKS][DEFAULT_STACK_SIZE];
-
-// Task management functions
 task_handle_t task_create_internal(task_function_t function, const char *name,
                                    uint16_t stack_size, void *param,
                                    task_priority_t priority);
@@ -58,7 +49,6 @@ void task_delete_internal(task_handle_t task);
 void task_set_state(task_handle_t task, task_state_t state);
 task_state_t task_get_state(task_handle_t task);
 
-// Stack management
 void task_init_stack(task_handle_t task, task_function_t function, void *param);
 bool task_stack_check(task_handle_t task);
 uint32_t task_stack_used_bytes(task_handle_t task);

@@ -1,8 +1,9 @@
 #include "critical.h"
+#include "memory.h"
 #include "queue.h"
 #include "scheduler.h"
 #include "task.h"
-#include <stdlib.h>
+
 #include <string.h>
 
 // ============================== HELPER FUNCTIONS =============================
@@ -31,20 +32,39 @@ static inline void wake_one(list_head_t *L) {
   scheduler_add_task(t);
 }
 
+static size_t calculate_buffer_size(size_t queue_length, size_t item_size) {
+  return queue_length * item_size;
+}
+
 // =============================================================================
 
 // Public API
 queue_handle_t queue_create(size_t queue_length, size_t item_size) {
   if (queue_length == 0 || item_size == 0) return NULL;
 
-  queue_control_block *qcb =
-      (queue_control_block *)calloc(1, sizeof(queue_control_block));
+  queue_control_block *qcb = queue_pool_alloc_qcb();
   if (!qcb) return NULL;
 
-  if (cb_init(&qcb->buffer, queue_length, item_size) != CB_SUCCESS) {
-    free(qcb);
+  size_t buffer_size = calculate_buffer_size(queue_length, item_size);
+
+  void *buffer = queue_pool_alloc_buffer(buffer_size);
+  if (!buffer) {
+    queue_pool_free_cb(qcb);
     return NULL;
   }
+
+  size_t capacity = 1;
+  while (capacity < queue_length) {
+    capacity <<= 1;
+  }
+
+  qcb->buffer.capacity = capacity;
+  qcb->buffer.buffer = buffer;
+  qcb->buffer.element_size = item_size;
+  qcb->buffer.size = 0;
+  qcb->buffer.head = 0;
+  qcb->buffer.tail = 0;
+  qcb->buffer.mask = capacity - 1;
 
   list_init(&qcb->waiting_senders);
   list_init(&qcb->waiting_receivers);

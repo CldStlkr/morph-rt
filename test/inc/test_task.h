@@ -12,11 +12,15 @@ void test_task_create_should_fail_with_null_name(void);
 void test_task_create_should_fail_with_zero_stack_size(void);
 void test_task_create_should_fail_with_invalid_priority(void);
 void test_task_create_should_use_default_stack_size_when_zero(void);
+void test_task_create_should_select_appropriate_stack_pool(void);
+void test_task_create_should_fail_when_pools_exhausted(void);
+void test_task_create_should_exhaust_tcb_pool_with_mixed_stacks(void);
 
 // Task deletion tests
 void test_task_delete_should_cleanup_resources(void);
 void test_task_delete_should_handle_null_task(void);
 void test_task_delete_should_free_stack_memory(void);
+void test_task_delete_should_allow_reallocation(void);
 
 // Task state management tests
 void test_task_set_state_should_update_state(void);
@@ -43,11 +47,13 @@ void test_task_should_handle_name_truncation(void);
 // Memory management tests
 void test_task_should_allocate_separate_stack_memory(void);
 void test_task_stack_pointer_should_be_within_bounds(void);
+void test_task_should_integrate_with_memory_pools(void);
 
 // Integration tests (testing interactions)
 void test_multiple_tasks_should_have_separate_stacks(void);
 void test_task_lifecycle_create_to_delete(void);
 
+// Module setup/teardown and test runner
 void task_test_setup(void);
 void task_test_teardown(void);
 void run_task_tests(void);

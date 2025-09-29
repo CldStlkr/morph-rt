@@ -5,9 +5,11 @@
 #include "queue.h"
 #include "semaphore.h"
 #include "task.h"
+#include "mutex.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
 
 // Memory pool structure
 typedef struct memory_pool {
@@ -45,11 +47,15 @@ bool task_pool_free_stack(uint32_t *stack);
 
 queue_control_block *queue_pool_alloc_qcb(void);
 void *queue_pool_alloc_buffer(size_t requested_size);
-bool queue_pool_free_cb(queue_control_block *qcb);
+bool queue_pool_free_qcb(queue_control_block *qcb);
 bool queue_pool_free_buffer(void *buffer);
 
 semaphore_control_block *sem_pool_alloc_scb(void);
 bool sem_pool_free_scb(semaphore_control_block *sem);
+
+
+mutex_control_block *mutex_pool_alloc_mcb(void);
+bool mutex_pool_free_mcb(mutex_control_block *mutex);
 
 typedef struct pool_stats {
   size_t total_objects;

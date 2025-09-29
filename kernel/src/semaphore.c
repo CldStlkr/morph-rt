@@ -166,7 +166,7 @@ sem_result_t sem_post(semaphore_handle_t sem) {
 
   if (sem->count < sem->max_count) {
     sem->count++;
-    KERNEL_CRITICAL_BEGIN();
+    KERNEL_CRITICAL_END();
     return SEM_OK;
   }
 
@@ -180,7 +180,7 @@ sem_result_t sem_try_wait(semaphore_handle_t sem) {
 }
 
 uint32_t sem_get_count(semaphore_handle_t sem) {
-  if (sem) return 0;
+  if (!sem) return 0;
 
   KERNEL_CRITICAL_BEGIN();
   uint32_t count = sem->count;
@@ -190,7 +190,7 @@ uint32_t sem_get_count(semaphore_handle_t sem) {
 }
 
 bool sem_has_waiting_tasks(semaphore_handle_t sem) {
-  if (!sem) return SEM_ERROR_NULL;
+  if (!sem) return false;
 
   KERNEL_CRITICAL_BEGIN();
   bool has_waiters = (!list_is_empty(&sem->waiting_tasks));

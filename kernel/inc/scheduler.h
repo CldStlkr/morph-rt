@@ -40,4 +40,7 @@ void scheduler_cancel_timeout(task_handle_t t);
 task_priority_t scheduler_get_highest_priority(void);
 bool scheduler_has_ready_tasks(void);
 
+void scheduler_boost_priority(task_handle_t task, task_priority_t new_priority);
+void scheduler_restore_priority(task_handle_t task);
+
 #endif // !SCHEDULER_H

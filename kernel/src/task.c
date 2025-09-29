@@ -42,7 +42,8 @@ task_handle_t task_create_internal(task_function_t function, const char *name,
   strncpy(tcb->name, name, sizeof(tcb->name) - 1);
   tcb->name[sizeof(tcb->name) - 1] = '\0';
 
-  tcb->priority = priority;
+  tcb->base_priority = priority;
+  tcb->effective_priority = priority;
   tcb->state = TASK_READY;
   tcb->wake_tick = 0;
   tcb->wake_reason = WAKE_REASON_NONE;

@@ -21,11 +21,12 @@ typedef struct task_control_block {
   // CPU context (stack pointer, registers)
   uint32_t *stack_pointer;
   uint32_t *stack_base;
-  uint32_t stack_size; // in bytes
+  uint32_t stack_size; // In bytes
 
   // Task information
   char name[16];
-  task_priority_t priority;
+  task_priority_t base_priority;
+  task_priority_t effective_priority; // Mutex inheritance
   task_state_t state;
 
   uint32_t wake_tick;

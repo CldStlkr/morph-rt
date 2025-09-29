@@ -27,6 +27,7 @@ typedef enum {
 
 // Public API
 queue_handle_t queue_create(size_t queue_length, size_t item_size);
+
 void queue_delete(queue_handle_t queue);
 
 queue_result_t queue_send(queue_handle_t queue, const void *item,

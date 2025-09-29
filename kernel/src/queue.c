@@ -46,25 +46,17 @@ queue_handle_t queue_create(size_t queue_length, size_t item_size) {
   if (!qcb) return NULL;
 
   size_t buffer_size = calculate_buffer_size(queue_length, item_size);
-
   void *buffer = queue_pool_alloc_buffer(buffer_size);
   if (!buffer) {
-    queue_pool_free_cb(qcb);
+    queue_pool_free_qcb(qcb);
     return NULL;
   }
 
-  size_t capacity = 1;
-  while (capacity < queue_length) {
-    capacity <<= 1;
+  if (cb_init(&qcb->buffer, buffer, queue_length, item_size) != CB_SUCCESS) {
+    queue_pool_free_buffer(buffer);
+    queue_pool_free_qcb(qcb);
+    return NULL;
   }
-
-  qcb->buffer.capacity = capacity;
-  qcb->buffer.buffer = buffer;
-  qcb->buffer.element_size = item_size;
-  qcb->buffer.size = 0;
-  qcb->buffer.head = 0;
-  qcb->buffer.tail = 0;
-  qcb->buffer.mask = capacity - 1;
 
   list_init(&qcb->waiting_senders);
   list_init(&qcb->waiting_receivers);
@@ -75,8 +67,21 @@ queue_handle_t queue_create(size_t queue_length, size_t item_size) {
 void queue_delete(queue_handle_t queue) {
   if (!queue) return;
 
-  cb_free(&queue->buffer);
-  free(queue); // queue_handle_t is an opaque pointer, can free
+  KERNEL_CRITICAL_BEGIN();
+
+  // Wake all waiting tasks
+  while (!list_is_empty(&queue->waiting_senders)) {
+    wake_one(&queue->waiting_senders);
+  }
+  while (!list_is_empty(&queue->waiting_receivers)) {
+    wake_one(&queue->waiting_receivers);
+  }
+
+  KERNEL_CRITICAL_END();
+
+  void *internal_buffer = cb_deinit(&queue->buffer);
+  queue_pool_free_buffer(internal_buffer);
+  queue_pool_free_qcb(queue);
 }
 
 queue_result_t queue_send(queue_handle_t queue, const void *item,

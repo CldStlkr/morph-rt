@@ -9,6 +9,8 @@
 void test_queue_create_should_succeed_with_valid_parameters(void);
 void test_queue_create_should_fail_with_zero_length(void);
 void test_queue_create_should_fail_with_zero_item_size(void);
+void test_queue_create_should_fail_when_pools_exhausted(void);
+void test_queue_create_should_select_appropriate_buffer_pool(void);
 void test_queue_delete_should_handle_null_queue(void);
 void test_queue_delete_should_cleanup_resources(void);
 
@@ -37,13 +39,8 @@ void test_queue_receive_with_zero_timeout_should_not_block(void);
 void test_queue_send_should_return_timeout_when_deadline_exceeded(void);
 void test_queue_receive_should_return_timeout_when_deadline_exceeded(void);
 
-// Wake reason tests
-void test_queue_should_set_wake_reason_data_available_on_success(void);
-void test_queue_should_handle_timeout_wake_reason(void);
-
 // Integration tests
-void test_queue_send_should_wake_waiting_receivers(void);
-void test_queue_receive_should_wake_waiting_senders(void);
+void test_queue_should_integrate_with_memory_pools(void);
 void test_queue_full_lifecycle_send_receive_pattern(void);
 
 // Capacity and buffer management

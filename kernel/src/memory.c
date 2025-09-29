@@ -29,9 +29,8 @@ static memory_pool_t buffer_small_pool_mgr;
 static memory_pool_t buffer_medium_pool_mgr;
 static memory_pool_t buffer_large_pool_mgr;
 
-// Semaphore and Mutex pools (placeholder structures for future implementations)
-static uint8_t semaphore_pool[MAX_SEMAPHORES];
-static uint8_t mutex_pool[MAX_MUTEXES][64]; // Placeholder size
+static semaphore_control_block semaphore_pool[MAX_SEMAPHORES];
+static mutex_control_block mutex_pool[MAX_MUTEXES];
 
 static memory_pool_t semaphore_pool_mgr;
 static memory_pool_t mutex_pool_mgr;
@@ -121,7 +120,7 @@ void memory_pools_init(void) {
             sizeof(semaphore_control_block), MAX_SEMAPHORES);
 
   // Placeholder mutex pools
-  pool_init(&mutex_pool_mgr, mutex_pool, 64, MAX_MUTEXES);
+  pool_init(&mutex_pool_mgr, mutex_pool, sizeof(mutex_control_block), MAX_MUTEXES);
 
   // Clear peak usage counters
   memset(peak_usage, 0, sizeof(peak_usage));
@@ -224,7 +223,7 @@ bool task_pool_free_stack(uint32_t *stack) {
 }
 
 // ========================== QUEUE-SPECIFIC HELPERS ===========================
-queue_control_block *queue_pool_alloc_cb(void) {
+queue_control_block *queue_pool_alloc_qcb(void) {
   return (queue_control_block *)pool_alloc(POOL_QCB);
 }
 
@@ -260,6 +259,16 @@ semaphore_control_block *sem_pool_alloc_scb(void) {
 
 bool sem_pool_free_scb(semaphore_control_block *sem) {
   return pool_free(POOL_SCB, sem);
+}
+
+
+// ==================== MUTEX-SPECIFIC HELPERS ============================
+mutex_control_block *mutex_pool_alloc_mcb(void) {
+  return (mutex_control_block*)pool_alloc(POOL_MCB);
+}
+
+bool mutex_pool_free_mcb(mutex_control_block *mutex) {
+  return pool_free(POOL_MCB, mutex);
 }
 
 // ======================= STATISTICS AND DEBUG ================================

@@ -1,6 +1,7 @@
 #include "port.h"
 #include "scheduler.h"
 #include <stddef.h>
+#include "critical.h"
 
 // Ready queues - one per priority level
 list_head_t ready_queues[MAX_PRIORITY + 1];
@@ -80,7 +81,7 @@ void scheduler_add_task(task_handle_t task) {
 
   task->state = TASK_READY;
 
-  list_insert_tail(&ready_queues[task->priority], &task->ready_link);
+  list_insert_tail(&ready_queues[task->effective_priority], &task->ready_link);
 }
 
 void scheduler_remove_task(task_handle_t task) {
@@ -132,7 +133,7 @@ void scheduler_delay_current_task(uint32_t ticks) {
 
   current_task->state = TASK_BLOCKED;
 
-  // KERNEL_CRITICAL_BEGIN();
+  KERNEL_CRITICAL_BEGIN();
   uint32_t now = tick_now;     // read once
   uint32_t wake = now + ticks; // automatically wraps
   current_task->wake_tick = wake;
@@ -140,16 +141,16 @@ void scheduler_delay_current_task(uint32_t ticks) {
   list_head_t *L = time_lt(wake, now) ? &delayed_ovf : &delayed_cur;
 
   delayed_insert_sorted(L, current_task);
-  // KERNEL_CRITICAL_END();
+  KERNEL_CRITICAL_END();
 
   scheduler_yield();
 }
 
 // Timer tick handler - processes delayed tasks
 void scheduler_tick(void) {
-  // KERNEL_CRITICAL_BEGIN();
+  KERNEL_CRITICAL_BEGIN();
   uint32_t now = tick_now++;
-  // KERNEL_CRITICAL_END();
+  KERNEL_CRITICAL_END();
 
   // Release all tasks whose wake_tick <= now from current list
   while (!list_is_empty(&delayed_cur)) {
@@ -177,12 +178,12 @@ void scheduler_tick(void) {
 }
 
 void scheduler_set_timeout(task_handle_t t, uint32_t wake_tick) {
-  // KERNEL_CRITICAL_BEGIN();
+  KERNEL_CRITICAL_BEGIN();
   uint32_t now = tick_now;
   t->wake_tick = wake_tick;
   list_head_t *L = time_lt(wake_tick, now) ? &delayed_ovf : &delayed_cur;
   delayed_insert_sorted(L, t);
-  // KERNEL_CRITICAL_END();
+  KERNEL_CRITICAL_END();
 }
 
 void scheduler_expire_timeout(task_handle_t t) {
@@ -197,11 +198,11 @@ void scheduler_expire_timeout(task_handle_t t) {
 }
 
 void scheduler_cancel_timeout(task_handle_t t) {
-  // KERNEL_CRITICAL_BEGIN();
+  KERNEL_CRITICAL_BEGIN();
   if (!list_is_empty(&t->delay_link)) {
     list_remove(&t->delay_link);
   }
-  // KERNEL_CRITICAL_END();
+  KERNEL_CRITICAL_END();
 }
 
 // Priority management
@@ -222,3 +223,42 @@ bool scheduler_has_ready_tasks(void) {
   }
   return false;
 }
+
+
+
+void scheduler_boost_priority(task_handle_t task, task_priority_t new_priority) {
+  if (!task || new_priority >= task->effective_priority) return;
+
+  KERNEL_CRITICAL_BEGIN();
+
+  // Remove from current priority queue
+  if (task->state == TASK_READY && !list_is_empty(&task->ready_link)) {
+    list_remove(&task->ready_link);
+  }
+
+  task->effective_priority = new_priority;
+
+  if (task->state == TASK_READY) {
+    list_insert_tail(&ready_queues[new_priority], &task->ready_link);
+  }
+
+  KERNEL_CRITICAL_END();
+}
+
+void scheduler_restore_priority(task_handle_t task) {
+  if (!task || task->effective_priority == task->base_priority) return;
+
+  KERNEL_CRITICAL_BEGIN();
+  if (task->state == TASK_READY && !list_is_empty(&task->ready_link)) {
+    list_remove(&task->ready_link);
+  }
+
+  task->effective_priority = task->base_priority;
+
+  if (task->state == TASK_READY) {
+    list_insert_tail(&ready_queues[task->base_priority], &task->ready_link);
+  }
+
+  KERNEL_CRITICAL_END();
+}
+

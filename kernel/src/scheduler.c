@@ -8,6 +8,7 @@ list_head_t ready_queues[MAX_PRIORITY + 1];
 task_handle_t current_task = NULL;
 task_handle_t next_task = NULL;
 
+
 static void delayed_insert_sorted(list_head_t *list, task_handle_t t) {
   list_head_t *pos;
   list_iter(pos, list) {
@@ -74,7 +75,7 @@ task_handle_t scheduler_get_next_task(void) {
     }
   }
   // No ready tasks found
-  return NULL;
+  while (1) {}
 }
 void scheduler_add_task(task_handle_t task) {
   if (!task) return;

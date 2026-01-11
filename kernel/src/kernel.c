@@ -1,6 +1,8 @@
 #include "kernel.h"
 #include "scheduler.h"
 #include "task.h"
+#include "memory.h"
+#include "port.h"
 #include <stddef.h>
 
 // Kernel state - private to this module
@@ -13,13 +15,60 @@ static bool _is_valid_task_context(void) {
 
 static bool _is_kernel_ready(void) { return kernel_initialized; }
 
+
+
+static void idle_task_function(void *param) {
+  (void)param;
+  while (1) {
+    __disable_irq();
+
+    bool can_sleep = true;
+
+    for (task_priority_t p = 0; p < MAX_PRIORITY; p++) {
+      if (!list_is_empty(&ready_queues[p])) {
+        can_sleep = false;
+        break;
+      }
+    }
+
+    if (can_sleep) {
+      // Wait for Interrupt
+      __WFI();
+    }
+
+    __enable_irq();
+
+    task_yield();
+  }
+}
+
+static task_handle_t idle_task_handle = NULL;
+
+
 // Public kernel API
 void kernel_init(void) {
   if (kernel_initialized) {
     return;
   }
 
+  memory_pools_init();
+
   scheduler_init();
+
+  idle_task_handle = task_create_internal(
+    idle_task_function,
+    "IDLE",
+    SMALL_STACK_SIZE,
+    NULL,
+    MAX_PRIORITY // Lowest Priority (7)
+  );
+
+  if (!idle_task_handle) {
+    // Critical failure
+    while (1) {}
+  }
+
+  scheduler_add_task(idle_task_handle);
 
   kernel_initialized = true;
   kernel_running = false;
@@ -28,7 +77,6 @@ void kernel_init(void) {
 void kernel_start(void) {
   if (!kernel_initialized) {
     while (1) {
-      // Infinite loop - system cannot start
     }
   }
 
@@ -38,14 +86,12 @@ void kernel_start(void) {
 
   kernel_running = true;
 
-  // Start the scheduler (this should never return)
+  // Should never return
   scheduler_start();
 
-  // If we reach here, something went wrong
   kernel_running = false;
-  while (1) {
-    // Infinite loop - critical error
-  }
+  // Critical error
+  while (1) {}
 }
 
 // Public task management API
@@ -56,17 +102,14 @@ task_handle_t task_create(task_function_t function, const char *name,
     return NULL;
   }
 
-  // Use default stack size if 0 is passed
   if (stack_size == 0) {
     stack_size = DEFAULT_STACK_SIZE;
   }
 
-  // Create the task using internal function
   task_handle_t task =
       task_create_internal(function, name, stack_size, param, priority);
 
   if (task) {
-    // Add task to scheduler's ready queue
     scheduler_add_task(task);
   }
 
@@ -74,30 +117,28 @@ task_handle_t task_create(task_function_t function, const char *name,
 }
 
 void task_delete(task_handle_t task) {
-  if (!task) {
+  if (!task || task == idle_task_handle) {
     return;
   }
 
   // For public API functions, use the clean interface
   task_handle_t current = task_get_current();
 
-  // If we're trying to delete the current task, we need special handling
-  if (task == current) {
-    // Mark task for deletion
-    task->state = TASK_DELETED;
 
-    // Remove from scheduler
+  if (task == current) {
+    task->state = TASK_DELETED;
     scheduler_remove_task(task);
 
-    // Trigger context switch to next task
+    // Mark for cleanup by idle task
+    // TODO: Implement deferred deletion in idle task
+
     scheduler_yield();
 
-    // We should never reach here if context switching works
+    // Should never reach here if context switching works
     // The task deletion will be completed by the scheduler
     return;
   }
 
-  // For non-current tasks, delete immediately
   task_delete_internal(task);
 }
 
@@ -106,7 +147,6 @@ void task_delay(uint32_t ticks) {
     return;
   }
 
-  // Use scheduler's delay function
   scheduler_delay_current_task(ticks);
 
   // After this point, the task will be suspended until delay expires
@@ -121,16 +161,14 @@ void task_yield(void) {
   // For public API, use the clean interface
   task_handle_t current = task_get_current();
 
-  // Put current task back in ready queue (end of its priority level)
   if (current->state == TASK_RUNNING) {
     current->state = TASK_READY;
     scheduler_add_task(current);
   }
 
-  // Trigger scheduler to pick next task
   scheduler_yield();
 
-  // Context switch will happen here (when implemented)
+  // Context switch will happen here.
   // When we return, this task is running again
 }
 

@@ -1,0 +1,17 @@
+[package]
+name = "traffic-light"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+panic-halt = "1.0.0"
+
+[lib]
+name = "traffic_light"
+crate-type = ["staticlib"]
+test = false
+bench = false
+
+[profile.release]
+opt-level = "z"
+lto = true

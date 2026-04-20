@@ -25,7 +25,7 @@
 
 /*
  * void start_first_task(uint32_t *first_task_sp)
- * 
+ *
  * Starts the very first task - called from scheduler_start()
  * Parameter: r0 = first task's stack pointer value
  */
@@ -34,19 +34,19 @@
 start_first_task:
     /* Disable interrupts during startup */
     cpsid   i
-    
+
     /* Set the process stack pointer to the first task's stack */
     msr     psp, r0             /* PSP = first_task_sp */
-    
+
     /* Enable interrupts */
     cpsie   i
-    
+
     /* Pop the software-saved registers (R4-R11) */
     ldmia   r0!, {r4-r11}
-    
+
     /* Update PSP after popping software registers */
     msr     psp, r0
-    
+
     /* Return using process stack */
     /* EXC_RETURN = 0xFFFFFFFD (return to Thread mode, use PSP) */
     ldr     lr, =0xFFFFFFFD
@@ -65,11 +65,11 @@ trigger_context_switch:
     ldr     r0, =SCB_ICSR
     ldr     r1, =ICSR_PENDSVSET
     str     r1, [r0]
-    
+
     /* Ensure write completes before returning */
     dsb
     isb
-    
+
     bx      lr
 
 /*
@@ -83,18 +83,18 @@ trigger_context_switch:
 PendSV_Handler:
     /* Disable interrupts during context switch */
     cpsid   i
-    
+
     /* Check if this is the first context switch */
     ldr     r2, =current_task
     ldr     r1, [r2]            /* r1 = current_task */
     cbz     r1, restore_context /* If current_task == NULL, just restore */
-    
+
 save_context:
     /* Save software registers (R4-R11) on current task's stack */
     /* Hardware registers (R0-R3, R12, LR, PC, xPSR) already saved by CPU */
     mrs     r0, psp             /* Get process stack pointer */
     stmdb   r0!, {r4-r11}       /* Push R4-R11 onto stack */
-    
+
     /* Save the new stack pointer back to current task's TCB */
     str     r0, [r1]            /* current_task->stack_pointer = r0 */
 
@@ -102,23 +102,23 @@ restore_context:
     /* Get the next task to run */
     ldr     r1, =next_task
     ldr     r2, [r1]            /* r2 = next_task */
-    
+
     /* Update current_task = next_task */
     ldr     r3, =current_task
     str     r2, [r3]
-    
+
     /* Load next task's stack pointer */
     ldr     r0, [r2]            /* r0 = next_task->stack_pointer */
-    
+
     /* Restore software registers (R4-R11) */
     ldmia   r0!, {r4-r11}       /* Pop R4-R11 from stack */
-    
+
     /* Update process stack pointer */
     msr     psp, r0
-    
+
     /* Enable interrupts */
     cpsie   i
-    
+
     /* Return using process stack */
     /* EXC_RETURN = 0xFFFFFFFD (return to Thread mode, use PSP) */
     ldr     lr, =0xFFFFFFFD
@@ -126,35 +126,35 @@ restore_context:
 
 /*
  * SysTick_Handler
- * 
+ *
  * System timer interrupt - calls scheduler_tick()
  */
 .global SysTick_Handler
 .type SysTick_Handler, %function
 SysTick_Handler:
     /* Save context on stack */
-    push    {lr}
-    
+    push    {r7, lr}
+
     /* Call the C function scheduler_tick() */
     bl      scheduler_tick
-    
+
     /* Check if we need to context switch */
     bl      scheduler_get_next_task
     ldr     r1, =current_task
     ldr     r2, [r1]
     cmp     r0, r2              /* Compare next_task with current_task */
     beq     systick_exit        /* If same, no context switch needed */
-    
+
     /* Store next_task for PendSV handler */
     ldr     r1, =next_task
     str     r0, [r1]
-    
+
     /* Trigger context switch */
     bl      trigger_context_switch
 
 systick_exit:
     /* Restore context and return */
-    pop     {lr}
+    pop     {r7, lr}
     bx      lr
 
 /*
@@ -167,33 +167,33 @@ systick_exit:
 .type systick_init, %function
 systick_init:
     push    {r4, lr}
-    
+
     /* Calculate reload value: (SystemCoreClock / ticks_per_second) - 1 */
     /* For STM32F4 @ 168MHz: (168000000 / 1000) - 1 = 167999 for 1ms */
-    ldr     r1, =168000000      /* STM32F4 max frequency */
+    ldr     r1, =16000000      /* STM32F4 max frequency */
     udiv    r2, r1, r0          /* r2 = SystemCoreClock / ticks_per_second */
     sub     r2, r2, #1          /* r2 = reload_value - 1 */
-    
+
     /* Set SysTick reload value */
     ldr     r1, =SYSTICK_LOAD
     str     r2, [r1]
-    
+
     /* Clear current value */
     ldr     r1, =SYSTICK_VAL
     mov     r2, #0
     str     r2, [r1]
-    
+
     /* Enable SysTick: CLKSOURCE=1 (processor clock), TICKINT=1, ENABLE=1 */
     ldr     r1, =SYSTICK_CTRL
     mov     r2, #0x7            /* Bits 0,1,2 = ENABLE, TICKINT, CLKSOURCE */
     str     r2, [r1]
-    
+
     pop     {r4, lr}
     bx      lr
 
 /*
  * set_pendsv_priority(void)
- * 
+ *
  * Set PendSV to lowest priority (highest priority value)
  * This ensures context switches happen after other interrupts
  */

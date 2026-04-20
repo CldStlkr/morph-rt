@@ -1,0 +1,2 @@
+kernel/inc/cmsis/** linguist-vendored
+kernel/inc/stm32/** linguist-vendored

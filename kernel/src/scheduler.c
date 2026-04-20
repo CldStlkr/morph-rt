@@ -1,13 +1,19 @@
+#include "critical.h"
 #include "port.h"
 #include "scheduler.h"
 #include <stddef.h>
-#include "critical.h"
 
 // Ready queues - one per priority level
 list_head_t ready_queues[MAX_PRIORITY + 1];
 task_handle_t current_task = NULL;
 task_handle_t next_task = NULL;
 
+list_head_t _delay_list_1;
+list_head_t _delay_list_2;
+list_head_t *delayed_cur;
+list_head_t *delayed_ovf;
+
+volatile uint32_t tick_now = 0;
 
 static void delayed_insert_sorted(list_head_t *list, task_handle_t t) {
   list_head_t *pos;
@@ -26,9 +32,12 @@ void scheduler_init(void) {
   for (int i = 0; i <= MAX_PRIORITY; i++) {
     list_init(&ready_queues[i]);
   }
+  list_init(&_delay_list_1);
+  list_init(&_delay_list_2);
 
-  list_init(&delayed_cur);
-  list_init(&delayed_ovf);
+  delayed_cur = &_delay_list_1;
+  delayed_ovf = &_delay_list_2;
+
   tick_now = 0;
 
   current_task = NULL;
@@ -75,7 +84,8 @@ task_handle_t scheduler_get_next_task(void) {
     }
   }
   // No ready tasks found
-  while (1) {}
+  while (1) {
+  }
 }
 void scheduler_add_task(task_handle_t task) {
   if (!task) return;
@@ -139,7 +149,7 @@ void scheduler_delay_current_task(uint32_t ticks) {
   uint32_t wake = now + ticks; // automatically wraps
   current_task->wake_tick = wake;
 
-  list_head_t *L = time_lt(wake, now) ? &delayed_ovf : &delayed_cur;
+  list_head_t *L = time_lt(wake, now) ? delayed_ovf : delayed_cur;
 
   delayed_insert_sorted(L, current_task);
   KERNEL_CRITICAL_END();
@@ -150,12 +160,12 @@ void scheduler_delay_current_task(uint32_t ticks) {
 // Timer tick handler - processes delayed tasks
 void scheduler_tick(void) {
   KERNEL_CRITICAL_BEGIN();
-  uint32_t now = tick_now++;
+  uint32_t now = ++tick_now;
   KERNEL_CRITICAL_END();
 
   // Release all tasks whose wake_tick <= now from current list
-  while (!list_is_empty(&delayed_cur)) {
-    task_handle_t t = tcb_from_delay_link(delayed_cur.next); // head
+  while (!list_is_empty(delayed_cur)) {
+    task_handle_t t = tcb_from_delay_link(delayed_cur->next); // head
     if (time_gt(t->wake_tick, now)) break;
 
     list_remove(&t->delay_link);
@@ -164,13 +174,13 @@ void scheduler_tick(void) {
 
   // On wrap to 0, swap lists so former overflow becomes current
   if (now == 0) {
-    list_head_t tmp = delayed_cur;
+    list_head_t *tmp = delayed_cur;
     delayed_cur = delayed_ovf;
     delayed_ovf = tmp;
 
     // drain again so tasks with wake_tick == 0 don't wait one extra tick
-    while (!list_is_empty(&delayed_cur)) {
-      task_handle_t t = tcb_from_delay_link(delayed_cur.next);
+    while (!list_is_empty(delayed_cur)) {
+      task_handle_t t = tcb_from_delay_link(delayed_cur->next);
       if (time_gt(t->wake_tick, now)) break;
       list_remove(&t->delay_link);
       scheduler_expire_timeout(t);
@@ -182,7 +192,7 @@ void scheduler_set_timeout(task_handle_t t, uint32_t wake_tick) {
   KERNEL_CRITICAL_BEGIN();
   uint32_t now = tick_now;
   t->wake_tick = wake_tick;
-  list_head_t *L = time_lt(wake_tick, now) ? &delayed_ovf : &delayed_cur;
+  list_head_t *L = time_lt(wake_tick, now) ? delayed_ovf : delayed_cur;
   delayed_insert_sorted(L, t);
   KERNEL_CRITICAL_END();
 }
@@ -225,9 +235,8 @@ bool scheduler_has_ready_tasks(void) {
   return false;
 }
 
-
-
-void scheduler_boost_priority(task_handle_t task, task_priority_t new_priority) {
+void scheduler_boost_priority(task_handle_t task,
+                              task_priority_t new_priority) {
   if (!task || new_priority >= task->effective_priority) return;
 
   KERNEL_CRITICAL_BEGIN();
@@ -262,4 +271,3 @@ void scheduler_restore_priority(task_handle_t task) {
 
   KERNEL_CRITICAL_END();
 }
-

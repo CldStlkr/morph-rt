@@ -1,8 +1,8 @@
 #include "kernel.h"
-#include "scheduler.h"
-#include "task.h"
 #include "memory.h"
 #include "port.h"
+#include "scheduler.h"
+#include "task.h"
 #include <stddef.h>
 
 // Kernel state - private to this module
@@ -14,8 +14,6 @@ static bool _is_valid_task_context(void) {
 }
 
 static bool _is_kernel_ready(void) { return kernel_initialized; }
-
-
 
 static void idle_task_function(void *param) {
   (void)param;
@@ -44,7 +42,6 @@ static void idle_task_function(void *param) {
 
 static task_handle_t idle_task_handle = NULL;
 
-
 // Public kernel API
 void kernel_init(void) {
   if (kernel_initialized) {
@@ -55,17 +52,15 @@ void kernel_init(void) {
 
   scheduler_init();
 
-  idle_task_handle = task_create_internal(
-    idle_task_function,
-    "IDLE",
-    SMALL_STACK_SIZE,
-    NULL,
-    MAX_PRIORITY // Lowest Priority (7)
-  );
+  idle_task_handle =
+      task_create_internal(idle_task_function, "IDLE", SMALL_STACK_SIZE, NULL,
+                           MAX_PRIORITY // Lowest Priority (7)
+      );
 
   if (!idle_task_handle) {
     // Critical failure
-    while (1) {}
+    while (1) {
+    }
   }
 
   scheduler_add_task(idle_task_handle);
@@ -91,7 +86,8 @@ void kernel_start(void) {
 
   kernel_running = false;
   // Critical error
-  while (1) {}
+  while (1) {
+  }
 }
 
 // Public task management API
@@ -123,7 +119,6 @@ void task_delete(task_handle_t task) {
 
   // For public API functions, use the clean interface
   task_handle_t current = task_get_current();
-
 
   if (task == current) {
     task->state = TASK_DELETED;

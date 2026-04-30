@@ -1,0 +1,26 @@
+name: Build
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      - name: Install ARM toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake gcc-arm-none-eabi binutils-arm-none-eabi
+      - name: Install Rust embedded target
+        run: |
+          rustup target add thumbv7em-none-eabihf
+      - name: Build
+        run: |
+          mkdir build && cd build
+          cmake -DCMAKE_SYSTEM_NAME=Generic \
+                -DCMAKE_C_COMPILER=arm-none-eabi-gcc \
+                -DCMAKE_ASM_COMPILER=arm-none-eabi-gcc \
+                -DCMAKE_OBJCOPY=arm-none-eabi-objcopy \
+                -DCMAKE_SIZE=arm-none-eabi-size \
+                ..
+          make -j

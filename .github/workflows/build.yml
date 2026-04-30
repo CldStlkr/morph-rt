@@ -17,10 +17,5 @@ jobs:
       - name: Build
         run: |
           mkdir build && cd build
-          cmake -DCMAKE_SYSTEM_NAME=Generic \
-                -DCMAKE_C_COMPILER=arm-none-eabi-gcc \
-                -DCMAKE_ASM_COMPILER=arm-none-eabi-gcc \
-                -DCMAKE_OBJCOPY=arm-none-eabi-objcopy \
-                -DCMAKE_SIZE=arm-none-eabi-size \
-                ..
+          cmake -DCMAKE_TOOLCHAIN_FILE=../.github/cmake/arm-none-eabi.cmake ..
           make -j

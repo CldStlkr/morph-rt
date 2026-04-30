@@ -1,9 +1,7 @@
 # Morph-RT: Hard Real-Time Operating System Kernel
 
 ![C](https://img.shields.io/badge/C11-00599C?style=flat&logo=c&logoColor=white)
-![ARM](https://img.shields.io/badge/ARM_Cortex--M4-0091BD?style=flat&logo=arm&logoColor=white)
 ![Assembly](https://img.shields.io/badge/Assembly-525252?style=flat&logoColor=white)
-![Rust](https://img.shields.io/badge/Rust-CE422B?style=flat&logo=rust&logoColor=white)
 ![CMake](https://img.shields.io/badge/CMake-064F8C?style=flat&logo=cmake&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-blue?style=flat)
 ![Build](https://github.com/CldStlkr/morph-rt/actions/workflows/build.yml/badge.svg)

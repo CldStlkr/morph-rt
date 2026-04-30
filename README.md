@@ -44,6 +44,21 @@ stateDiagram-v2
     DELAYED --> READY : SysTick Wakeup
 ```
 
+### O(1) Timing Wheel for Lower Scheduling Jitter
+
+To prevent unbounded scheduling jitter caused by iterating through sorted sleeping tasks during a `SysTick` interrupt, the kernel implements an O(1) timing wheel. Instead of an O(N) linked list insertion, delayed tasks are hashed into a bucketed array.
+
+The slot index is computed using a fast bitwise `AND` on the current tick and the wheel mask. Tasks with delays exceeding the wheel size track remaining full rotations via a `rotations` counter in the TCB.
+
+```c
+// O(1) insertion into the timing wheel
+uint32_t ticks = ticks_until(wake_tick, tick_now);
+t->rotations = ticks / TIMING_WHEEL_SIZE;
+uint32_t slot = (tick_now + ticks) & TIMING_WHEEL_MASK;
+list_insert_tail(&timing_wheel[slot], &t->delay_link);
+```
+During the `SysTick` handler, the kernel only iterates over the tasks in the current slot, decrementing rotations or waking the task if `rotations == 0`.
+
 ### Context Switching & PendSV Preemption
 
 Context switching leverages the ARM Cortex-M `PendSV` (Pendable Service Call) exception, ensuring context switches only occur when no other high-priority interrupts are active. The hardware automatically stacks caller-saved registers (`R0-R3`, `R12`, `LR`, `PC`, `xPSR`), minimizing the assembly footprint required to stack callee-saved registers (`R4-R11`).
@@ -65,6 +80,12 @@ IPC primitives like message queues rely on generic void-pointer circular buffers
 // Bounded O(1) buffer push with bit masking
 self->tail = (self->tail + 1) & self->mask;
 ```
+
+### Foreign Function Interface (FFI) with Embedded Rust
+
+Morph-RT demonstrates interoperability between the C kernel and application logic written in Rust. By compiling a `#![no_std]` Rust crate to a static library (`thumbv7em-none-eabihf`), the CMake build system links it directly against the RTOS.
+
+Rust functions are exposed to the C kernel using `extern "C"`, allowing them to be spawned directly as standard RTOS tasks. Furthermore, the Rust application can safely invoke the kernel's C APIs—such as `task_delay` or `queue_receive`—by binding to them via FFI, providing a modern, memory-safe layer on top of the real-time primitives.
 
 ## Features
 

@@ -32,25 +32,27 @@
 .global start_first_task
 .type start_first_task, %function
 start_first_task:
-    /* Disable interrupts during startup */
-    cpsid   i
-
-    /* Set the process stack pointer to the first task's stack */
-    msr     psp, r0             /* PSP = first_task_sp */
-
-    /* Enable interrupts */
-    cpsie   i
-
-    /* Pop the software-saved registers (R4-R11) */
-    ldmia   r0!, {r4-r11}
-
-    /* Update PSP after popping software registers */
+    /* Set PSP to first task's stack */
     msr     psp, r0
 
-    /* Return using process stack */
-    /* EXC_RETURN = 0xFFFFFFFD (return to Thread mode, use PSP) */
-    ldr     lr, =0xFFFFFFFD
-    bx      lr
+    /* Switch to use PSP in thread mode */
+    mrs     r0, control
+    orr     r0, r0, #2
+    msr     control, r0
+    isb
+
+    /* Explicitly enable interrupts (clears PRIMASK).
+       st-flash often leaves interrupts disabled when resetting the board,
+       which prevents SysTick and PendSV from ever firing! */
+    cpsie   i
+
+    /* Pop software-saved registers R4-R11 and EXC_RETURN (in LR) */
+    pop     {r4-r11, lr}
+
+    /* Pop hardware registers - CPU will use PSP now */
+    pop     {r0-r3, r12}
+    pop     {r1}      /* Discard hardware LR */
+    pop     {pc}      /* Pop true PC and start task */
 
 /*
  * void trigger_context_switch(void)
@@ -90,10 +92,10 @@ PendSV_Handler:
     cbz     r1, restore_context /* If current_task == NULL, just restore */
 
 save_context:
-    /* Save software registers (R4-R11) on current task's stack */
+    /* Save software registers (R4-R11) and EXC_RETURN (LR) on current task's stack */
     /* Hardware registers (R0-R3, R12, LR, PC, xPSR) already saved by CPU */
     mrs     r0, psp             /* Get process stack pointer */
-    stmdb   r0!, {r4-r11}       /* Push R4-R11 onto stack */
+    stmdb   r0!, {r4-r11, lr}   /* Push R4-R11 and LR onto stack */
 
     /* Save the new stack pointer back to current task's TCB */
     str     r0, [r1]            /* current_task->stack_pointer = r0 */
@@ -110,8 +112,8 @@ restore_context:
     /* Load next task's stack pointer */
     ldr     r0, [r2]            /* r0 = next_task->stack_pointer */
 
-    /* Restore software registers (R4-R11) */
-    ldmia   r0!, {r4-r11}       /* Pop R4-R11 from stack */
+    /* Restore software registers (R4-R11) and EXC_RETURN */
+    ldmia   r0!, {r4-r11, lr}   /* Pop R4-R11 and LR from stack */
 
     /* Update process stack pointer */
     msr     psp, r0
@@ -119,9 +121,7 @@ restore_context:
     /* Enable interrupts */
     cpsie   i
 
-    /* Return using process stack */
-    /* EXC_RETURN = 0xFFFFFFFD (return to Thread mode, use PSP) */
-    ldr     lr, =0xFFFFFFFD
+    /* Return using process stack via popped EXC_RETURN */
     bx      lr
 
 /*
@@ -205,6 +205,12 @@ set_pendsv_priority:
     mov     r1, #0xFF           /* Lowest priority */
     strb    r1, [r0]
     bx      lr
+
+
+.global HardFault_Handler
+.type HardFault_Handler, %function
+HardFault_Handler:
+    b .
 
 /* External symbols from C code */
 .extern current_task

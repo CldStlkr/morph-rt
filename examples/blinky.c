@@ -1,3 +1,5 @@
+#include "SEGGER_SYSVIEW.h"
+
 #include "kernel.h"
 #include "task.h"
 #include <stddef.h>

@@ -31,6 +31,7 @@ vector_table:
     // ... add more as needed for your specific MCU
 
 .text
+.thumb_func
 .global Reset_Handler
 Reset_Handler:
     // Due to ARM Thumb instruction encoding...
@@ -42,6 +43,9 @@ Reset_Handler:
 
     // Zero out BSS section
     bl zero_bss_init
+
+    // Initialize system clocks
+    bl SystemInit
 
     // RTOS-specific initialization
     // Set PendSV and SysTick to lowest priority (so they don't preempt other interrupts)
@@ -57,7 +61,6 @@ Reset_Handler:
 
 // Default exception handlers (weak symbols so they can be overridden)
 .weak NMI_Handler
-.weak HardFault_Handler
 .weak MemManage_Handler
 .weak BusFault_Handler
 .weak UsageFault_Handler
@@ -67,18 +70,28 @@ Reset_Handler:
 .weak SysTick_Handler
 .weak Default_Handler
 
+.thumb_func
 NMI_Handler:
+.thumb_func
 HardFault_Handler:
+.thumb_func
 MemManage_Handler:
+.thumb_func
 BusFault_Handler:
+.thumb_func
 UsageFault_Handler:
+.thumb_func
 SVC_Handler:
+.thumb_func
 DebugMon_Handler:
+.thumb_func
 Default_Handler:
     b .                              // Infinite loop for unhandled exceptions
 
 // These will be implemented in context_switch.s
+.thumb_func
 .global PendSV_Handler               // Context switch handler
+.thumb_func
 .global SysTick_Handler              // Timer tick handler
 
 

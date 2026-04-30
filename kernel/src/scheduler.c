@@ -1,3 +1,5 @@
+#include "SEGGER_SYSVIEW.h"
+
 #include "critical.h"
 #include "port.h"
 #include "scheduler.h"
@@ -45,6 +47,10 @@ void scheduler_init(void) {
 }
 
 void scheduler_start(void) {
+
+  SEGGER_SYSVIEW_Conf();
+  SEGGER_SYSVIEW_Start();
+
   // Set PendSV to lowest priority
   set_pendsv_priority();
 
@@ -93,6 +99,7 @@ void scheduler_add_task(task_handle_t task) {
   task->state = TASK_READY;
 
   list_insert_tail(&ready_queues[task->effective_priority], &task->ready_link);
+  SEGGER_SYSVIEW_OnTaskStartReady((uint32_t)task);
 }
 
 void scheduler_remove_task(task_handle_t task) {
@@ -114,6 +121,7 @@ void scheduler_remove_task(task_handle_t task) {
 void scheduler_block_current_task(void) {
   if (current_task) {
     current_task->state = TASK_BLOCKED;
+    SEGGER_SYSVIEW_OnTaskStopReady((uint32_t)current_task, 0);
     scheduler_remove_task(current_task);
   }
 }
@@ -129,6 +137,8 @@ void scheduler_yield(void) {
 
   // Only switch if there is a different task to run
   if (next_task && next_task != current_task) {
+    SEGGER_SYSVIEW_OnTaskStopExec();
+    SEGGER_SYSVIEW_OnTaskStartExec((uint32_t)next_task);
     trigger_context_switch();
   }
 }
@@ -159,9 +169,11 @@ void scheduler_delay_current_task(uint32_t ticks) {
 
 // Timer tick handler - processes delayed tasks
 void scheduler_tick(void) {
+  // SEGGER_SYSVIEW_RecordEnterISR();
   KERNEL_CRITICAL_BEGIN();
   uint32_t now = ++tick_now;
   KERNEL_CRITICAL_END();
+  // SEGGER_SYSVIEW_RecordExitISR();
 
   // Release all tasks whose wake_tick <= now from current list
   while (!list_is_empty(delayed_cur)) {

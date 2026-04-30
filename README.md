@@ -35,15 +35,24 @@ Task states are managed using intrusive linked lists (`list_head_t`). Instead of
 
 ```mermaid
 stateDiagram-v2
-    [*] --> READY : task_create()
-    READY --> RUNNING : scheduler_get_next_task()
-    RUNNING --> READY : PendSV Preemption
-    RUNNING --> BLOCKED : wait(mutex/sem/queue)
-    BLOCKED --> READY : signal() / timeout
-    RUNNING --> DELAYED : sleep()
-    DELAYED --> READY : SysTick Wakeup
+    [*] --> READY
+    READY --> RUNNING
+    RUNNING --> READY
+    RUNNING --> BLOCKED
+    BLOCKED --> READY
+    RUNNING --> DELAYED
+    DELAYED --> READY
 ```
 
+| Transition | Trigger |
+|---|---|
+| `[*]` → READY | `task_create()` |
+| READY → RUNNING | `scheduler_get_next_task()` |
+| RUNNING → READY | PendSV preemption |
+| RUNNING → BLOCKED | `wait()` on mutex/semaphore/queue |
+| BLOCKED → READY | `signal()` or timeout |
+| RUNNING → DELAYED | `sleep()` |
+| DELAYED → READY | SysTick wakeup |
 ### O(1) Timing Wheel for Lower Scheduling Jitter
 
 To prevent unbounded scheduling jitter caused by iterating through sorted sleeping tasks during a `SysTick` interrupt, the kernel implements an O(1) timing wheel. Instead of an O(N) linked list insertion, delayed tasks are hashed into a bucketed array.

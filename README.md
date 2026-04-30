@@ -1,5 +1,12 @@
 # Morph-RT: Hard Real-Time Operating System Kernel
 
+![C](https://img.shields.io/badge/C11-00599C?style=flat&logo=c&logoColor=white)
+![ARM](https://img.shields.io/badge/ARM_Cortex--M4-0091BD?style=flat&logo=arm&logoColor=white)
+![Assembly](https://img.shields.io/badge/Assembly-525252?style=flat&logoColor=white)
+![Rust](https://img.shields.io/badge/Rust-000000?style=flat&logo=rust&logoColor=white)
+![CMake](https://img.shields.io/badge/CMake-064F8C?style=flat&logo=cmake&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-blue?style=flat)
+
 A hard real-time operating system (RTOS) kernel engineered from scratch for the ARM Cortex-M4 architecture. Written in C11 and Thumb-2 assembly, the system provides deterministic preemption, zero-allocation memory management, and bounded-time IPC primitives.
 
 <div align="center">

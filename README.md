@@ -6,6 +6,7 @@
 ![Rust](https://img.shields.io/badge/Rust-000000?style=flat&logo=rust&logoColor=white)
 ![CMake](https://img.shields.io/badge/CMake-064F8C?style=flat&logo=cmake&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-blue?style=flat)
+![Build](https://github.com/CldStlkr/morph-rt/actions/workflows/build.yml/badge.svg)
 
 A hard real-time operating system (RTOS) kernel engineered from scratch for the ARM Cortex-M4 architecture. Written in C11 and Thumb-2 assembly, the system provides deterministic preemption, zero-allocation memory management, and bounded-time IPC primitives.
 

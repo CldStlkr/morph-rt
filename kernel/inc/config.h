@@ -5,7 +5,7 @@
 #define MAX_PRIORITY 7
 
 // Pool config
-#define MAX_TASKS 8
+#define MAX_TASKS 64
 #define MAX_QUEUES 4
 #define MAX_SEMAPHORES 8
 #define MAX_MUTEXES 4
@@ -15,7 +15,7 @@
 #define DEFAULT_STACK_SIZE 1024
 #define LARGE_STACK_SIZE 2048
 
-#define MAX_SMALL_STACKS 4
+#define MAX_SMALL_STACKS 64
 #define MAX_DEFAULT_STACKS 6
 #define MAX_LARGE_STACKS 2
 

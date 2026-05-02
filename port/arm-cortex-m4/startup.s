@@ -25,10 +25,14 @@ vector_table:
     .word PendSV_Handler             // PendSV handler
     .word SysTick_Handler            // SysTick handler
 
-    // External interrupts (add as needed)
-    .word Default_Handler            // IRQ 0
-    .word Default_Handler            // IRQ 1
-    // ... add more as needed for your specific MCU
+    // External interrupts
+    .word Default_Handler            // IRQ 0: WWDG
+    .word Default_Handler            // IRQ 1: PVD
+    .word Default_Handler            // IRQ 2: TAMP_STAMP
+    .word Default_Handler            // IRQ 3: RTC_WKUP
+    .word Default_Handler            // IRQ 4: FLASH
+    .word Default_Handler            // IRQ 5: RCC
+    .word EXTI0_IRQHandler           // IRQ 6: EXTI Line 0 (PA0)
 
 .text
 .thumb_func
@@ -60,6 +64,11 @@ Reset_Handler:
     b .
 
 // Default exception handlers (weak symbols so they can be overridden)
+.weak EXTI0_IRQHandler
+.thumb_func
+EXTI0_IRQHandler:
+    b .
+
 .weak NMI_Handler
 .weak MemManage_Handler
 .weak BusFault_Handler

@@ -38,32 +38,28 @@ static memory_pool_t mutex_pool_mgr;
 // Array of all pool managers for easy access
 
 static memory_pool_t *pools[POOL_COUNT] = {
-    &tcb_pool_mgr,           &stack_small_pool_mgr,  &stack_default_pool_mgr,
-    &stack_large_pool_mgr,   &queue_pool_mgr,        &buffer_small_pool_mgr,
-    &buffer_medium_pool_mgr, &buffer_large_pool_mgr, &semaphore_pool_mgr,
-    &mutex_pool_mgr};
+    &tcb_pool_mgr,          &stack_small_pool_mgr,   &stack_default_pool_mgr, &stack_large_pool_mgr, &queue_pool_mgr,
+    &buffer_small_pool_mgr, &buffer_medium_pool_mgr, &buffer_large_pool_mgr,  &semaphore_pool_mgr,   &mutex_pool_mgr};
 
 // Peak usage tracking
 static size_t peak_usage[POOL_COUNT] = {0};
 
 // ============================== HELPER FUNCTIONS =============================
 
-static void pool_init(memory_pool_t *pool, void *pool_start, size_t object_size,
-                      size_t max_objects) {
+static void pool_init(memory_pool_t *pool, void *pool_start, size_t object_size, size_t max_objects) {
   pool->pool_start = pool_start;
   pool->object_size = object_size;
   pool->pool_size = object_size * max_objects;
-  pool->free_bitmap =
-      (1ULL << max_objects) - 1; // All objects are free upon initialization
+  pool->free_bitmap = (max_objects == 64) ? 0xFFFFFFFFFFFFFFFFULL : (1ULL << max_objects) - 1;
   pool->free_count = max_objects;
 }
 
-static int find_free_bit(uint32_t bitmap) {
+static int find_free_bit(uint64_t bitmap) {
   if (bitmap == 0) return -1;
 
-  // Find first set bit (free object);
-  for (int i = 0; i < 32; i++) {
-    if (bitmap & (1U << i)) {
+  // Find first set bit (free object)
+  for (int i = 0; i < 64; i++) {
+    if (bitmap & (1ULL << i)) {
       return i;
     }
   }
@@ -95,29 +91,21 @@ void memory_pools_init(void) {
   pool_init(&tcb_pool_mgr, tcb_pool, sizeof(task_control_block), MAX_TASKS);
 
   // Stack pools
-  pool_init(&stack_small_pool_mgr, small_stacks, SMALL_STACK_SIZE,
-            MAX_SMALL_STACKS);
-  pool_init(&stack_default_pool_mgr, default_stacks, DEFAULT_STACK_SIZE,
-            MAX_DEFAULT_STACKS);
+  pool_init(&stack_small_pool_mgr, small_stacks, SMALL_STACK_SIZE, MAX_SMALL_STACKS);
+  pool_init(&stack_default_pool_mgr, default_stacks, DEFAULT_STACK_SIZE, MAX_DEFAULT_STACKS);
 
-  pool_init(&stack_large_pool_mgr, large_stacks, LARGE_STACK_SIZE,
-            MAX_LARGE_STACKS);
+  pool_init(&stack_large_pool_mgr, large_stacks, LARGE_STACK_SIZE, MAX_LARGE_STACKS);
 
   // QCB pool
-  pool_init(&queue_pool_mgr, queue_pool, sizeof(queue_control_block),
-            MAX_QUEUES);
+  pool_init(&queue_pool_mgr, queue_pool, sizeof(queue_control_block), MAX_QUEUES);
 
   // Buffer pools
-  pool_init(&buffer_small_pool_mgr, small_buffers, SMALL_BUFFER_SIZE,
-            MAX_SMALL_BUFFERS);
-  pool_init(&buffer_medium_pool_mgr, medium_buffers, DEFAULT_BUFFER_SIZE,
-            MAX_MEDIUM_BUFFERS);
+  pool_init(&buffer_small_pool_mgr, small_buffers, SMALL_BUFFER_SIZE, MAX_SMALL_BUFFERS);
+  pool_init(&buffer_medium_pool_mgr, medium_buffers, DEFAULT_BUFFER_SIZE, MAX_MEDIUM_BUFFERS);
 
-  pool_init(&buffer_large_pool_mgr, large_buffers, LARGE_BUFFER_SIZE,
-            MAX_LARGE_BUFFERS);
+  pool_init(&buffer_large_pool_mgr, large_buffers, LARGE_BUFFER_SIZE, MAX_LARGE_BUFFERS);
 
-  pool_init(&semaphore_pool_mgr, semaphore_pool,
-            sizeof(semaphore_control_block), MAX_SEMAPHORES);
+  pool_init(&semaphore_pool_mgr, semaphore_pool, sizeof(semaphore_control_block), MAX_SEMAPHORES);
 
   // Placeholder mutex pools
   pool_init(&mutex_pool_mgr, mutex_pool, sizeof(mutex_control_block), MAX_MUTEXES);
@@ -147,7 +135,7 @@ void *pool_alloc(pool_type_t pool_type) {
   }
 
   // Mark as allocated
-  pool->free_bitmap &= ~(1U << free_index);
+  pool->free_bitmap &= ~(1ULL << free_index);
   pool->free_count--;
 
   size_t used = (pool->pool_size / pool->object_size) - pool->free_count;
@@ -180,12 +168,12 @@ bool pool_free(pool_type_t pool_type, void *ptr) {
   KERNEL_CRITICAL_BEGIN();
 
   // Check if already free
-  if (pool->free_bitmap & (1U << index)) {
+  if (pool->free_bitmap & (1ULL << index)) {
     KERNEL_CRITICAL_END();
     return false;
   }
 
-  pool->free_bitmap |= (1U << index);
+  pool->free_bitmap |= (1ULL << index);
   pool->free_count++;
 
   KERNEL_CRITICAL_END();
@@ -194,6 +182,14 @@ bool pool_free(pool_type_t pool_type, void *ptr) {
 }
 
 // ========================== TASK-SPECIFIC HELPERS ===========================
+void memory_pool_for_each_tcb(void (*callback)(task_control_block *)) {
+  for (int i = 0; i < MAX_TASKS; i++) {
+    if ((tcb_pool_mgr.free_bitmap & (1ULL << i)) == 0) {
+      callback(&tcb_pool[i]);
+    }
+  }
+}
+
 void *task_pool_alloc_tcb(void) { return pool_alloc(POOL_TCB); }
 
 // requested_size is in bytes. Will round up to nearest preset stack size.
@@ -210,9 +206,7 @@ void *task_pool_alloc_stack(size_t requested_size) {
   return NULL; // Requested size too large
 }
 
-bool task_pool_free_tcb(task_control_block *tcb) {
-  return pool_free(POOL_TCB, tcb);
-}
+bool task_pool_free_tcb(task_control_block *tcb) { return pool_free(POOL_TCB, tcb); }
 
 bool task_pool_free_stack(uint32_t *stack) {
   if (pool_free(POOL_STACK_SMALL, stack)) return true;
@@ -223,9 +217,7 @@ bool task_pool_free_stack(uint32_t *stack) {
 }
 
 // ========================== QUEUE-SPECIFIC HELPERS ===========================
-queue_control_block *queue_pool_alloc_qcb(void) {
-  return (queue_control_block *)pool_alloc(POOL_QCB);
-}
+queue_control_block *queue_pool_alloc_qcb(void) { return (queue_control_block *)pool_alloc(POOL_QCB); }
 
 void *queue_pool_alloc_buffer(size_t requested_size) {
 
@@ -240,9 +232,7 @@ void *queue_pool_alloc_buffer(size_t requested_size) {
   return NULL; // Requested size too large
 }
 
-bool queue_pool_free_qcb(queue_control_block *qcb) {
-  return pool_free(POOL_QCB, qcb);
-}
+bool queue_pool_free_qcb(queue_control_block *qcb) { return pool_free(POOL_QCB, qcb); }
 
 bool queue_pool_free_buffer(void *buffer) {
   if (pool_free(POOL_BUFFER_SMALL, buffer)) return true;
@@ -253,23 +243,14 @@ bool queue_pool_free_buffer(void *buffer) {
 }
 
 // ==================== SEMAPHORE-SPECIFIC HELPERS ============================
-semaphore_control_block *sem_pool_alloc_scb(void) {
-  return (semaphore_control_block *)pool_alloc(POOL_SCB);
-}
+semaphore_control_block *sem_pool_alloc_scb(void) { return (semaphore_control_block *)pool_alloc(POOL_SCB); }
 
-bool sem_pool_free_scb(semaphore_control_block *sem) {
-  return pool_free(POOL_SCB, sem);
-}
-
+bool sem_pool_free_scb(semaphore_control_block *sem) { return pool_free(POOL_SCB, sem); }
 
 // ==================== MUTEX-SPECIFIC HELPERS ============================
-mutex_control_block *mutex_pool_alloc_mcb(void) {
-  return (mutex_control_block*)pool_alloc(POOL_MCB);
-}
+mutex_control_block *mutex_pool_alloc_mcb(void) { return (mutex_control_block *)pool_alloc(POOL_MCB); }
 
-bool mutex_pool_free_mcb(mutex_control_block *mutex) {
-  return pool_free(POOL_MCB, mutex);
-}
+bool mutex_pool_free_mcb(mutex_control_block *mutex) { return pool_free(POOL_MCB, mutex); }
 
 // ======================= STATISTICS AND DEBUG ================================
 
@@ -294,9 +275,8 @@ pool_stats_t pool_get_stats(pool_type_t pool_type) {
 }
 
 void pool_print_stats(void) {
-  const char *pool_names[POOL_COUNT] = {
-      "TCB",          "Stack Small",   "Stack Default", "Stack Large", "QCB",
-      "Buffer Small", "Buffer Medium", "Buffer Large",  "SCB",         "MCB"};
+  const char *pool_names[POOL_COUNT] = {"TCB",          "Stack Small",   "Stack Default", "Stack Large", "QCB",
+                                        "Buffer Small", "Buffer Medium", "Buffer Large",  "SCB",         "MCB"};
 
   printf("\n=== Memory Pool Statistics ===\n");
   printf("Pool Name        | Total | Used | Free | Peak | Utilization\n");
@@ -304,14 +284,10 @@ void pool_print_stats(void) {
 
   for (int i = 0; i < POOL_COUNT; i++) {
     pool_stats_t stats = pool_get_stats((pool_type_t)i);
-    float utilization =
-        stats.total_objects > 0
-            ? (float)stats.used_objects / stats.total_objects * 100.0f
-            : 0.0f;
+    float utilization = stats.total_objects > 0 ? (float)stats.used_objects / stats.total_objects * 100.0f : 0.0f;
 
-    printf("%-16s | %5zu | %4zu | %4zu | %4zu | %6.1f%%\n", pool_names[i],
-           stats.total_objects, stats.used_objects, stats.free_objects,
-           stats.peak_usage, utilization);
+    printf("%-16s | %5zu | %4zu | %4zu | %4zu | %6.1f%%\n", pool_names[i], stats.total_objects, stats.used_objects,
+           stats.free_objects, stats.peak_usage, utilization);
   }
   printf("\n");
 }

@@ -1,4 +1,3 @@
-#include "SEGGER_SYSVIEW.h"
 
 #include "critical.h"
 #include "memory.h"
@@ -59,15 +58,6 @@ task_handle_t task_create_internal(task_function_t function, const char *name,
 
   task_init_stack(tcb, function, param);
 
-  // Register task with SystemView
-  SEGGER_SYSVIEW_TASKINFO info;
-  info.TaskID = (uint32_t)tcb;
-  info.sName = tcb->name;
-  info.Prio = tcb->base_priority;
-  info.StackBase = (uint32_t)tcb->stack_base;
-  info.StackSize = tcb->stack_size;
-  SEGGER_SYSVIEW_SendTaskInfo(&info);
-
   return (task_handle_t)tcb;
 }
 
@@ -75,8 +65,6 @@ void task_delete_internal(task_handle_t task) {
   if (!task) {
     return;
   }
-
-  SEGGER_SYSVIEW_OnTaskTerminate((uint32_t)task);
 
   KERNEL_CRITICAL_BEGIN();
   task->state = TASK_DELETED;

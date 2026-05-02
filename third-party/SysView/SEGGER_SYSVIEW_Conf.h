@@ -91,8 +91,11 @@ Additional information:
  **********************************************************************
  */
 
-#endif // SEGGER_SYSVIEW_CONF_H
+#define SEGGER_SYSVIEW_RTT_BUFFER_SIZE 32768
+#define SEGGER_SYSVIEW_POST_MORTEM_MODE 0
 
-/*************************** End of file ****************************/
-#define SEGGER_SYSVIEW_RTT_BUFFER_SIZE 4096
-#define SEGGER_SYSVIEW_POST_MORTEM_MODE 1
+#include "../../kernel/inc/critical.h"
+#define SEGGER_SYSVIEW_LOCK()     { uint32_t _sysview_primask = kernel_critical_enter();
+#define SEGGER_SYSVIEW_UNLOCK()     kernel_critical_exit(_sysview_primask); }
+
+#endif // SEGGER_SYSVIEW_CONF_H

@@ -94,63 +94,57 @@ sem_result_t sem_wait(semaphore_handle_t sem, uint32_t timeout) {
   uint32_t start_time = tick_now;
   uint32_t deadline = start_time + timeout;
 
-  for (;;) {
-    KERNEL_CRITICAL_BEGIN();
+  KERNEL_CRITICAL_BEGIN();
 
-    if (sem->count > 0) {
-      sem->count--;
-      KERNEL_CRITICAL_END();
-      return SEM_OK;
-    }
-
+  while (sem->count == 0) {
     if (timeout == SEM_NO_WAIT) {
       KERNEL_CRITICAL_END();
       return SEM_ERROR_TIMEOUT;
     }
 
-    // Check if timeout has expired
     uint32_t now = tick_now;
-    uint32_t remaining = ticks_until(deadline, now);
-    if (remaining == 0) {
-      KERNEL_CRITICAL_END();
-      return SEM_ERROR_TIMEOUT;
+    if (timeout != SEM_WAIT_FOREVER) {
+      if (time_gte(now, deadline)) {
+        KERNEL_CRITICAL_END();
+        return SEM_ERROR_TIMEOUT;
+      }
     }
 
     // Block current task
     current_task->waiting_on = sem;
     sem_waitlist_push(&sem->waiting_tasks, current_task);
+    scheduler_block_current_task();
 
-    // Set timeout if not waiting forever
     if (timeout != SEM_WAIT_FOREVER) {
-      uint32_t wake_time = now + remaining;
-      scheduler_set_timeout(current_task, wake_time);
+      scheduler_set_timeout(current_task, deadline);
     }
 
-    task_set_state(current_task, TASK_BLOCKED);
-
     KERNEL_CRITICAL_END();
-
-    // Task will resume here when unblocked
     scheduler_yield();
+    KERNEL_CRITICAL_BEGIN();
 
-    // Check why we woke up
     if (current_task->wake_reason == WAKE_REASON_TIMEOUT) {
+      KERNEL_CRITICAL_END();
       return SEM_ERROR_TIMEOUT;
     }
 
-    // If sem was deleted while waiting
     if (current_task->wake_reason == WAKE_REASON_SIGNAL) {
+      KERNEL_CRITICAL_END();
       return SEM_ERROR_NULL;
     }
 
-    // Update timeout for next iteration
-    if (timeout != SEM_WAIT_FOREVER) {
-      timeout = ticks_until(deadline, now);
-      if (timeout == 0) {
-        return SEM_ERROR_TIMEOUT;
-      }
+    // sem_post did a direct-pass (WAKE_REASON_DATA_AVAILABLE): the permit was
+    // handed to us without incrementing count, so return without decrementing.
+    if (current_task->wake_reason == WAKE_REASON_DATA_AVAILABLE) {
+      KERNEL_CRITICAL_END();
+      return SEM_OK;
     }
   }
+
+  // If we reach here, we can decrement the semaphore
+  sem->count--;
+  KERNEL_CRITICAL_END();
+  return SEM_OK;
 }
 
 sem_result_t sem_post(semaphore_handle_t sem) {

@@ -67,13 +67,13 @@ extern unsigned int SystemCoreClock;
 #define SYSVIEW_DEVICE_NAME "STM32f407VG"
 
 // Frequency of the timestamp. Must match SEGGER_SYSVIEW_Conf.h
-#define SYSVIEW_TIMESTAMP_FREQ (SystemCoreClock)
+#define SYSVIEW_TIMESTAMP_FREQ (16000000)
 
 // System Frequency. SystemcoreClock is used in most CMSIS compatible projects.
-#define SYSVIEW_CPU_FREQ (SystemCoreClock)
+#define SYSVIEW_CPU_FREQ (16000000)
 
 // The lowest RAM address used for IDs (pointers)
-#define SYSVIEW_RAM_BASE (0x2000000)
+#define SYSVIEW_RAM_BASE (0x20000000)
 
 // Define as 1 if the Cortex-M cycle counter is used as SystemView timestamp.
 // Must match SEGGER_SYSVIEW_Conf.h
@@ -84,8 +84,7 @@ extern unsigned int SystemCoreClock;
 // Define as 1 if the Cortex-M cycle counter is used and there might be no
 // debugger attached while recording.
 #ifndef ENABLE_DWT_CYCCNT
-#define ENABLE_DWT_CYCCNT                                                      \
-  (USE_CYCCNT_TIMESTAMP & SEGGER_SYSVIEW_POST_MORTEM_MODE)
+#define ENABLE_DWT_CYCCNT 1
 #endif
 
 /*********************************************************************
@@ -131,17 +130,33 @@ void SEGGER_SYSVIEW_Conf(void) {
     DEMCR |= TRACEENA_BIT;
   }
 #endif
-  //
-  //  The cycle counter must be activated in order
-  //  to use time related functions.
-  //
+//
+//  The cycle counter must be activated in order
+//  to use time related functions.
+//
+//
+// Ensure the debug interface stays alive during sleep/stop/standby
+// so SystemView/RTT can continue to read data while the CPU is idling.
+//
+#define DBGMCU_CR (*((volatile unsigned long *)(0xE0042004uL)))
+  DBGMCU_CR |= 0x07;
+  if ((DBGMCU_CR & 0x07) != 0x07) {
+    while (1)
+      ; // DBGMCU write failed!
+  }
+
   if ((DWT_CTRL & NOCYCCNT_BIT) == 0) {    // Cycle counter supported?
     if ((DWT_CTRL & CYCCNTENA_BIT) == 0) { // Cycle counter not enabled?
       DWT_CTRL |= CYCCNTENA_BIT;           // Enable Cycle counter
     }
   }
 #endif
-  SEGGER_SYSVIEW_Init(SYSVIEW_TIMESTAMP_FREQ, SYSVIEW_CPU_FREQ, 0,
+
+  extern void task_send_sysview_info(void);
+  static const SEGGER_SYSVIEW_OS_API SYSVIEW_OS_API = {0,
+                                                       task_send_sysview_info};
+
+  SEGGER_SYSVIEW_Init(SYSVIEW_TIMESTAMP_FREQ, SYSVIEW_CPU_FREQ, &SYSVIEW_OS_API,
                       _cbSendSystemDesc);
   SEGGER_SYSVIEW_SetRAMBase(SYSVIEW_RAM_BASE);
 }

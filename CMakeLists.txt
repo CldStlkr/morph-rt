@@ -5,13 +5,11 @@ set(CMAKE_C_STANDARD 11)
 
 add_compile_options(-Wall -Wextra -DSTM32F4 -DSTM32F407xx -D__ARM_ARCH=7 -g -O0)
 
-# SystemView sources
+# RTT sources (SystemView removed)
 set(SYSVIEW_DIR ${CMAKE_SOURCE_DIR}/third-party/SysView)
 set(SYSVIEW_SOURCES
-    ${SYSVIEW_DIR}/SEGGER_SYSVIEW.c
     ${SYSVIEW_DIR}/SEGGER_RTT.c
     ${SYSVIEW_DIR}/SEGGER_RTT_ASM_ARMv7M.S
-    ${SYSVIEW_DIR}/SEGGER_SYSVIEW_Config_NoOS.c
 )
 
 file(GLOB KERNEL_SOURCES
@@ -48,8 +46,17 @@ target_link_libraries(traffic_stop_ffi PRIVATE rtos_kernel ${CMAKE_SOURCE_DIR}/e
 add_executable(uart_demo examples/uart.c)
 target_link_libraries(uart_demo rtos_kernel)
 
+add_executable(stress_n4 examples/stress_N4.c examples/latency.c)
+target_link_libraries(stress_n4 rtos_kernel)
+add_executable(stress_n8 examples/stress_N8.c examples/latency.c)
+target_link_libraries(stress_n8 rtos_kernel)
+add_executable(stress_n16 examples/stress_N16.c examples/latency.c)
+target_link_libraries(stress_n16 rtos_kernel)
+add_executable(stress_n32 examples/stress_N32.c examples/latency.c)
+target_link_libraries(stress_n32 rtos_kernel)
+
 if(CMAKE_SYSTEM_NAME STREQUAL "Generic")
-    foreach(target uart_demo i2c blinky traffic_stop_ffi)
+    foreach(target uart_demo i2c blinky traffic_stop_ffi stress_n4 stress_n8 stress_n16 stress_n32)
         target_link_options(${target} PRIVATE
             -T ${CMAKE_SOURCE_DIR}/stm32f4.ld
             --specs=nano.specs

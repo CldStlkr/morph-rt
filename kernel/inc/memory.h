@@ -16,7 +16,7 @@ typedef struct memory_pool {
   void *pool_start;     // Starting position in memory of pool
   size_t object_size;   // Object size
   size_t pool_size;     // Math can be done to extract end address of pool
-  uint32_t free_bitmap; // Bitmap for free objects (up to 32 objects)
+  uint64_t free_bitmap; // Bitmap for free objects (up to 64 objects)
   size_t free_count;    // Number of free objects
 } memory_pool_t;
 
@@ -44,6 +44,7 @@ void *task_pool_alloc_tcb(void);
 void *task_pool_alloc_stack(size_t requested_size);
 bool task_pool_free_tcb(task_control_block *tcb);
 bool task_pool_free_stack(uint32_t *stack);
+void memory_pool_for_each_tcb(void (*callback)(task_control_block*));
 
 queue_control_block *queue_pool_alloc_qcb(void);
 void *queue_pool_alloc_buffer(size_t requested_size);

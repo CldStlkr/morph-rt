@@ -18,25 +18,7 @@ static bool _is_kernel_ready(void) { return kernel_initialized; }
 static void idle_task_function(void *param) {
   (void)param;
   while (1) {
-    __disable_irq();
-
-    bool can_sleep = true;
-
-    for (task_priority_t p = 0; p < MAX_PRIORITY; p++) {
-      if (!list_is_empty(&ready_queues[p])) {
-        can_sleep = false;
-        break;
-      }
-    }
-
-    if (can_sleep) {
-      // Wait for Interrupt
-      __WFI();
-    }
-
-    __enable_irq();
-
-    task_yield();
+    port_wait_for_interrupt();
   }
 }
 
@@ -124,13 +106,10 @@ void task_delete(task_handle_t task) {
     task->state = TASK_DELETED;
     scheduler_remove_task(task);
 
-    // Mark for cleanup by idle task
-    // TODO: Implement deferred deletion in idle task
-
     scheduler_yield();
 
     // Should never reach here if context switching works
-    // The task deletion will be completed by the scheduler
+    // Task deletion will be completed by the scheduler
     return;
   }
 

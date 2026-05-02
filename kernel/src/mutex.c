@@ -116,16 +116,9 @@ mutex_result_t mutex_lock(mutex_handle_t mutex, uint32_t timeout) {
   uint32_t start_time = tick_now;
   uint32_t deadline = start_time + timeout;
 
-  for (;;) {
-    KERNEL_CRITICAL_BEGIN();
+  KERNEL_CRITICAL_BEGIN();
 
-    // If mutex is not owned, aqcuire it
-    if (!mutex->owner) {
-      mutex->owner = current_task;
-      KERNEL_CRITICAL_END();
-      return MUTEX_OK;
-    }
-
+  while (mutex->owner != NULL) {
     if (mutex->owner == current_task) {
       KERNEL_CRITICAL_END();
       return MUTEX_ERROR_RECURSIVE;
@@ -136,13 +129,12 @@ mutex_result_t mutex_lock(mutex_handle_t mutex, uint32_t timeout) {
       return MUTEX_ERROR_TIMEOUT;
     }
 
-    // Check for timeout expiration
     uint32_t now = tick_now;
-    uint32_t remaining = ticks_until(deadline, now);
-
-    if (remaining == 0) {
-      KERNEL_CRITICAL_END();
-      return MUTEX_ERROR_TIMEOUT;
+    if (timeout != MUTEX_WAIT_FOREVER) {
+      if (time_gte(now, deadline)) {
+        KERNEL_CRITICAL_END();
+        return MUTEX_ERROR_TIMEOUT;
+      }
     }
 
     // Block current task
@@ -152,28 +144,31 @@ mutex_result_t mutex_lock(mutex_handle_t mutex, uint32_t timeout) {
     // Apply priority inheritance
     mutex_apply_priority_inheritance(mutex);
 
-    // Set timeout if not waiting forever
+    scheduler_block_current_task();
+
     if (timeout != MUTEX_WAIT_FOREVER) {
-      uint32_t wake_time = now + remaining;
-      scheduler_set_timeout(current_task, wake_time);
+      scheduler_set_timeout(current_task, deadline);
     }
 
-    task_set_state(current_task, TASK_BLOCKED);
     KERNEL_CRITICAL_END();
-
     scheduler_yield();
+    KERNEL_CRITICAL_BEGIN();
 
-    //Check why we woke up
-    if(current_task->wake_reason == WAKE_REASON_TIMEOUT) return MUTEX_ERROR_TIMEOUT;
+    if (current_task->wake_reason == WAKE_REASON_TIMEOUT) {
+      KERNEL_CRITICAL_END();
+      return MUTEX_ERROR_TIMEOUT;
+    }
 
-    if (current_task->wake_reason == WAKE_REASON_SIGNAL) return MUTEX_ERROR_NULL;
-
-    if (timeout != MUTEX_WAIT_FOREVER) {
-      uint32_t now_updated = tick_now;
-      timeout = ticks_until(deadline, now_updated);
-      if (timeout == 0) return MUTEX_ERROR_TIMEOUT;
+    if (current_task->wake_reason == WAKE_REASON_SIGNAL) {
+      KERNEL_CRITICAL_END();
+      return MUTEX_ERROR_NULL;
     }
   }
+
+  // If we reach here, we can acquire the mutex
+  mutex->owner = current_task;
+  KERNEL_CRITICAL_END();
+  return MUTEX_OK;
 }
 
 mutex_result_t mutex_unlock(mutex_handle_t mutex) {

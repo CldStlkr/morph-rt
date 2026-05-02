@@ -27,7 +27,10 @@ void USART2_Init_BareMetal(void) {
   // its default 16 MHz internal clock (HSI) at boot. If your Morph-RT C code
   // has a SystemClock_Config() that boosts the APB1 clock to 42MHz, this value
   // will need to be recalculated!
-  USART2->BRR = 0x008B; // (Mantissa = 8, Fraction = 11) for 16MHz clock
+  // USART2->BRR = 0x008B; // (Mantissa = 8, Fraction = 11) for 16MHz clock
+
+  // New 168MHz config
+  USART2->BRR = 0x016D;
 
   // 4. Enable the USART (UE), the Transmitter (TE), and the Receiver (RE)
   USART2->CR1 = USART_CR1_UE | USART_CR1_TE | USART_CR1_RE;

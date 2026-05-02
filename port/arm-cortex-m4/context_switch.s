@@ -89,28 +89,23 @@ PendSV_Handler:
     /* Check if this is the first context switch */
     ldr     r2, =current_task
     ldr     r1, [r2]            /* r1 = current_task */
-    cbz     r1, restore_context /* If current_task == NULL, just restore */
+    cbz     r1, switch_logic    /* If current_task == NULL, skip save */
 
 save_context:
     /* Save software registers (R4-R11) and EXC_RETURN (LR) on current task's stack */
-    /* Hardware registers (R0-R3, R12, LR, PC, xPSR) already saved by CPU */
     mrs     r0, psp             /* Get process stack pointer */
     stmdb   r0!, {r4-r11, lr}   /* Push R4-R11 and LR onto stack */
 
     /* Save the new stack pointer back to current task's TCB */
     str     r0, [r1]            /* current_task->stack_pointer = r0 */
 
-restore_context:
-    /* Get the next task to run */
-    ldr     r1, =next_task
-    ldr     r2, [r1]            /* r2 = next_task */
-
-    /* Update current_task = next_task */
-    ldr     r3, =current_task
-    str     r2, [r3]
+switch_logic:
+    /* Call C function to select next task and handle instrumentation */
+    bl      scheduler_switch_context
+    /* r0 now contains the new current_task handle */
 
     /* Load next task's stack pointer */
-    ldr     r0, [r2]            /* r0 = next_task->stack_pointer */
+    ldr     r0, [r0]            /* r0 = next_task->stack_pointer */
 
     /* Restore software registers (R4-R11) and EXC_RETURN */
     ldmia   r0!, {r4-r11, lr}   /* Pop R4-R11 and LR from stack */
@@ -138,21 +133,6 @@ SysTick_Handler:
     /* Call the C function scheduler_tick() */
     bl      scheduler_tick
 
-    /* Check if we need to context switch */
-    bl      scheduler_get_next_task
-    ldr     r1, =current_task
-    ldr     r2, [r1]
-    cmp     r0, r2              /* Compare next_task with current_task */
-    beq     systick_exit        /* If same, no context switch needed */
-
-    /* Store next_task for PendSV handler */
-    ldr     r1, =next_task
-    str     r0, [r1]
-
-    /* Trigger context switch */
-    bl      trigger_context_switch
-
-systick_exit:
     /* Restore context and return */
     pop     {r7, lr}
     bx      lr
@@ -169,8 +149,9 @@ systick_init:
     push    {r4, lr}
 
     /* Calculate reload value: (SystemCoreClock / ticks_per_second) - 1 */
-    /* For STM32F4 @ 168MHz: (168000000 / 1000) - 1 = 167999 for 1ms */
-    ldr     r1, =16000000      /* STM32F4 max frequency */
+    /* For STM32F4 @ 16MHz (HSI): (16000000 / 1000) - 1 = 15999 for 1ms */
+    ldr     r1, =SystemCoreClock
+    ldr     r1, [r1]            /* Load actual system clock frequency */
     udiv    r2, r1, r0          /* r2 = SystemCoreClock / ticks_per_second */
     sub     r2, r2, #1          /* r2 = reload_value - 1 */
 
@@ -214,8 +195,7 @@ HardFault_Handler:
 
 /* External symbols from C code */
 .extern current_task
-.extern next_task
 .extern scheduler_tick
-.extern scheduler_get_next_task
+.extern SystemCoreClock
 
 .end

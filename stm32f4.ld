@@ -36,6 +36,14 @@ SECTIONS
   /* Used by the startup to initialize data */
   _sidata = LOADADDR(.data);
 
+  /* RTT Control Block and Buffers - placed at the start of RAM for reliable J-Link discovery */
+  .rtt (NOLOAD) :
+  {
+    . = ALIGN(4);
+    *(.rtt)
+    . = ALIGN(4);
+  } >RAM
+
   /* Initialized data sections goes into RAM, load LMA copy after code */
   .data : 
   {
@@ -61,5 +69,15 @@ SECTIONS
     . = ALIGN(4);
     _ebss = .;         /* define a global symbol at bss end */
     __bss_end__ = _ebss;
+  } >RAM
+
+  /* User heap section, used by sbrk */
+  .heap :
+  {
+    . = ALIGN(4);
+    PROVIDE ( end = . );
+    PROVIDE ( _end = . );
+    . = . + 0x1000; /* Minimal heap of 4KB */
+    . = ALIGN(4);
   } >RAM
 }

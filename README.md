@@ -9,7 +9,7 @@
 A hard real-time operating system (RTOS) kernel engineered from scratch for the ARM Cortex-M4 architecture. Written in C11 and Thumb-2 assembly, the system provides deterministic preemption, zero-allocation memory management, and bounded-time IPC primitives.
 
 <div align="center">
-  <img src="https://via.placeholder.com/800x400?text=Morph-RT+SystemView+Trace" alt="SEGGER SystemView Trace" width="800">
+  <img width="2256" height="1976" alt="stats" src="https://github.com/user-attachments/assets/7eca3d99-2b5c-417c-878d-0d5330732f86" />
 </div>
 
 ## Architecture & Technical Implementation

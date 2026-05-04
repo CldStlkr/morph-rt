@@ -139,7 +139,7 @@ SysTick_Handler:
 
 /*
  * systick_init(uint32_t ticks_per_second)
- * 
+ *
  * Initialize SysTick timer
  * Parameter: r0 = desired tick frequency (e.g., 1000 for 1ms ticks)
  */
@@ -149,7 +149,7 @@ systick_init:
     push    {r4, lr}
 
     /* Calculate reload value: (SystemCoreClock / ticks_per_second) - 1 */
-    /* For STM32F4 @ 16MHz (HSI): (16000000 / 1000) - 1 = 15999 for 1ms */
+    /* For STM32F4 @ 168MHz (HSE): (168000000 / 1000) - 1 = 167999 for 1ms */
     ldr     r1, =SystemCoreClock
     ldr     r1, [r1]            /* Load actual system clock frequency */
     udiv    r2, r1, r0          /* r2 = SystemCoreClock / ticks_per_second */

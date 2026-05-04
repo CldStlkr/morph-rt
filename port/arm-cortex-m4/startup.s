@@ -33,6 +33,47 @@ vector_table:
     .word Default_Handler            // IRQ 4: FLASH
     .word Default_Handler            // IRQ 5: RCC
     .word EXTI0_IRQHandler           // IRQ 6: EXTI Line 0 (PA0)
+    .word Default_Handler            // IRQ 7: EXTI1
+    .word Default_Handler            // IRQ 8: EXTI2
+    .word Default_Handler            // IRQ 9: EXTI3
+    .word Default_Handler            // IRQ 10: EXTI4
+    .word Default_Handler            // IRQ 11: DMA1 Stream 0
+    .word Default_Handler            // IRQ 12: DMA1 Stream 1
+    .word Default_Handler            // IRQ 13: DMA1 Stream 2
+    .word Default_Handler            // IRQ 14: DMA1 Stream 3
+    .word Default_Handler            // IRQ 15: DMA1 Stream 4
+    .word Default_Handler            // IRQ 16: DMA1 Stream 5
+    .word Default_Handler            // IRQ 17: DMA1 Stream 6
+    .word Default_Handler            // IRQ 18: ADC
+    .word Default_Handler            // IRQ 19: CAN1_TX
+    .word Default_Handler            // IRQ 20: CAN1_RX0
+    .word Default_Handler            // IRQ 21: CAN1_RX1
+    .word Default_Handler            // IRQ 22: CAN1_SCE
+    .word Default_Handler            // IRQ 23: EXTI9_5
+    .word Default_Handler            // IRQ 24: TIM1_BRK_TIM9
+    .word Default_Handler            // IRQ 25: TIM1_UP_TIM10
+    .word Default_Handler            // IRQ 26: TIM1_TRG_COM_TIM11
+    .word Default_Handler            // IRQ 27: TIM1_CC
+    .word Default_Handler            // IRQ 28: TIM2
+    .word Default_Handler            // IRQ 29: TIM3
+    .word Default_Handler            // IRQ 30: TIM4
+    .word I2C1_EV_IRQHandler         // IRQ 31: I2C1 Event
+    .word I2C1_ER_IRQHandler         // IRQ 32: I2C1 Error
+    .word Default_Handler            // IRQ 33: I2C2 Event
+    .word Default_Handler            // IRQ 34: I2C2 Error
+    .word Default_Handler            // IRQ 35: SPI1
+    .word Default_Handler            // IRQ 36: SPI2
+    .word Default_Handler            // IRQ 37: USART1
+    .word Default_Handler            // IRQ 38: USART2
+    .word Default_Handler            // IRQ 39: USART3
+    .word Default_Handler            // IRQ 40: EXTI15_10
+    .word Default_Handler            // IRQ 41: RTC_Alarm
+    .word Default_Handler            // IRQ 42: OTG_FS_WKUP
+    .word Default_Handler            // IRQ 43: TIM8_BRK_TIM12
+    .word Default_Handler            // IRQ 44: TIM8_UP_TIM13
+    .word Default_Handler            // IRQ 45: TIM8_TRG_COM_TIM14
+    .word Default_Handler            // IRQ 46: TIM8_CC
+    .word DMA1_Stream7_IRQHandler    // IRQ 47: DMA1 Stream 7
 
 .text
 .thumb_func
@@ -67,6 +108,21 @@ Reset_Handler:
 .weak EXTI0_IRQHandler
 .thumb_func
 EXTI0_IRQHandler:
+    b .
+
+.weak I2C1_EV_IRQHandler
+.thumb_func
+I2C1_EV_IRQHandler:
+    b .
+
+.weak I2C1_ER_IRQHandler
+.thumb_func
+I2C1_ER_IRQHandler:
+    b .
+
+.weak DMA1_Stream7_IRQHandler
+.thumb_func
+DMA1_Stream7_IRQHandler:
     b .
 
 .weak NMI_Handler

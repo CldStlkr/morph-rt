@@ -9,9 +9,7 @@
 static bool kernel_initialized = false;
 static bool kernel_running = false;
 
-static bool _is_valid_task_context(void) {
-  return kernel_running && current_task != NULL;
-}
+static bool _is_valid_task_context(void) { return kernel_running && current_task != NULL; }
 
 static bool _is_kernel_ready(void) { return kernel_initialized; }
 
@@ -34,10 +32,9 @@ void kernel_init(void) {
 
   scheduler_init();
 
-  idle_task_handle =
-      task_create_internal(idle_task_function, "IDLE", SMALL_STACK_SIZE, NULL,
-                           MAX_PRIORITY // Lowest Priority (7)
-      );
+  idle_task_handle = task_create_internal(idle_task_function, "IDLE", SMALL_STACK_SIZE, NULL,
+                                          MAX_PRIORITY // Lowest Priority (7)
+  );
 
   if (!idle_task_handle) {
     // Critical failure
@@ -73,8 +70,7 @@ void kernel_start(void) {
 }
 
 // Public task management API
-task_handle_t task_create(task_function_t function, const char *name,
-                          uint16_t stack_size, void *param,
+task_handle_t task_create(task_function_t function, const char *name, uint16_t stack_size, void *param,
                           task_priority_t priority) {
   if (!_is_kernel_ready()) {
     return NULL;
@@ -84,8 +80,7 @@ task_handle_t task_create(task_function_t function, const char *name,
     stack_size = DEFAULT_STACK_SIZE;
   }
 
-  task_handle_t task =
-      task_create_internal(function, name, stack_size, param, priority);
+  task_handle_t task = task_create_internal(function, name, stack_size, param, priority);
 
   if (task) {
     scheduler_add_task(task);

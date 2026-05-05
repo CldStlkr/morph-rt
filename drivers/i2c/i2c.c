@@ -95,16 +95,16 @@ void i2c1_init(void) {
 
   /* ── I2C peripheral: 100 kHz, timing derived from actual APB1 clock ── */
   /* APB1 prescaler in RCC_CFGR bits [12:10]: 0xx=÷1, 100=÷2 .. 111=÷16 */
-  uint32_t ppre1    = (RCC->CFGR >> 10) & 0x7u;
+  uint32_t ppre1 = (RCC->CFGR >> 10) & 0x7u;
   uint32_t apb1_div = (ppre1 & 0x4u) ? (1u << (ppre1 - 3u)) : 1u;
-  uint32_t apb1_hz  = SystemCoreClock / apb1_div;
+  uint32_t apb1_hz = SystemCoreClock / apb1_div;
   uint32_t apb1_mhz = apb1_hz / 1000000u;
 
   I2C1->CR1 |= I2C_CR1_SWRST;
   I2C1->CR1 &= ~I2C_CR1_SWRST;
-  I2C1->CR2   = apb1_mhz;                 /* PCLK1 in MHz */
-  I2C1->CCR   = apb1_hz / (2u * 100000u); /* standard mode 100 kHz */
-  I2C1->TRISE = apb1_mhz + 1u;            /* max rise time for SM */
+  I2C1->CR2 = apb1_mhz;                 /* PCLK1 in MHz */
+  I2C1->CCR = apb1_hz / (2u * 100000u); /* standard mode 100 kHz */
+  I2C1->TRISE = apb1_mhz + 1u;          /* max rise time for SM */
   I2C1->CR1 |= I2C_CR1_PE | I2C_CR1_ACK;
 
   /* ── RTOS synchronisation objects ── */

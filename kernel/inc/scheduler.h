@@ -6,9 +6,6 @@
 
 // Ready queues - one per priority level
 extern list_head_t ready_queues[MAX_PRIORITY + 1];
-// Delayed task lists
-extern list_head_t *delayed_cur; // wake_tick in current epoch
-extern list_head_t *delayed_ovf; // wake_tick after wrap
 
 extern volatile uint32_t tick_now;
 

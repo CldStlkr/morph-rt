@@ -1,6 +1,6 @@
-#include "queue.h"
 #include "critical.h"
 #include "memory.h"
+#include "queue.h"
 #include "scheduler.h"
 #include "task.h"
 
@@ -9,22 +9,18 @@
 // ============================== HELPER FUNCTIONS =============================
 
 static inline task_handle_t waitlist_pop_head(list_head_t *L) {
-  if (list_is_empty(L))
-    return NULL;
+  if (list_is_empty(L)) return NULL;
 
   list_head_t *node = L->next;
   list_remove(node);
   return tcb_from_wait_link(node);
 }
 
-static inline void waitlist_push_tail(list_head_t *L, task_handle_t t) {
-  list_insert_tail(L, &t->wait_link);
-}
+static inline void waitlist_push_tail(list_head_t *L, task_handle_t t) { list_insert_tail(L, &t->wait_link); }
 
 static inline void wake_one(list_head_t *L) {
   task_handle_t t = waitlist_pop_head(L);
-  if (!t)
-    return;
+  if (!t) return;
 
   t->waiting_on = NULL;
   t->wake_reason = WAKE_REASON_DATA_AVAILABLE;
@@ -34,20 +30,16 @@ static inline void wake_one(list_head_t *L) {
   scheduler_add_task(t);
 }
 
-static size_t calculate_buffer_size(size_t queue_length, size_t item_size) {
-  return queue_length * item_size;
-}
+static size_t calculate_buffer_size(size_t queue_length, size_t item_size) { return queue_length * item_size; }
 
 // =============================================================================
 
 // Public API
 queue_handle_t queue_create(size_t queue_length, size_t item_size) {
-  if (queue_length == 0 || item_size == 0)
-    return NULL;
+  if (queue_length == 0 || item_size == 0) return NULL;
 
   queue_control_block *qcb = queue_pool_alloc_qcb();
-  if (!qcb)
-    return NULL;
+  if (!qcb) return NULL;
 
   size_t buffer_size = calculate_buffer_size(queue_length, item_size);
   void *buffer = queue_pool_alloc_buffer(buffer_size);
@@ -69,8 +61,7 @@ queue_handle_t queue_create(size_t queue_length, size_t item_size) {
 }
 
 void queue_delete(queue_handle_t queue) {
-  if (!queue)
-    return;
+  if (!queue) return;
 
   KERNEL_CRITICAL_BEGIN();
 
@@ -89,10 +80,8 @@ void queue_delete(queue_handle_t queue) {
   queue_pool_free_qcb(queue);
 }
 
-queue_result_t queue_send(queue_handle_t queue, const void *item,
-                          uint32_t timeout) {
-  if (!queue || !item)
-    return QUEUE_ERROR_NULL_POINTER;
+queue_result_t queue_send(queue_handle_t queue, const void *item, uint32_t timeout) {
+  if (!queue || !item) return QUEUE_ERROR_NULL_POINTER;
 
   uint32_t start = tick_now;
   uint32_t deadline = start + timeout;
@@ -147,10 +136,8 @@ queue_result_t queue_send(queue_handle_t queue, const void *item,
   return QUEUE_SUCCESS;
 }
 
-queue_result_t queue_receive(queue_handle_t queue, void *item,
-                             uint32_t timeout) {
-  if (!queue || !item)
-    return QUEUE_ERROR_NULL_POINTER;
+queue_result_t queue_receive(queue_handle_t queue, void *item, uint32_t timeout) {
+  if (!queue || !item) return QUEUE_ERROR_NULL_POINTER;
 
   uint32_t start = tick_now;
   uint32_t deadline = start + timeout;
@@ -205,22 +192,12 @@ queue_result_t queue_receive(queue_handle_t queue, void *item,
   return QUEUE_SUCCESS;
 }
 
-queue_result_t queue_send_immediate(queue_handle_t queue, const void *item) {
-  return queue_send(queue, item, 0);
-}
+queue_result_t queue_send_immediate(queue_handle_t queue, const void *item) { return queue_send(queue, item, 0); }
 
-queue_result_t queue_receive_immediate(queue_handle_t queue, void *item) {
-  return queue_receive(queue, item, 0);
-}
+queue_result_t queue_receive_immediate(queue_handle_t queue, void *item) { return queue_receive(queue, item, 0); }
 
-bool queue_is_empty(queue_handle_t queue) {
-  return queue ? cb_is_empty(&queue->buffer) : true;
-}
+bool queue_is_empty(queue_handle_t queue) { return queue ? cb_is_empty(&queue->buffer) : true; }
 
-bool queue_is_full(queue_handle_t queue) {
-  return queue ? cb_is_full(&queue->buffer) : false;
-}
+bool queue_is_full(queue_handle_t queue) { return queue ? cb_is_full(&queue->buffer) : false; }
 
-size_t queue_messages_waiting(queue_handle_t queue) {
-  return queue ? cb_size(&queue->buffer) : 0;
-}
+size_t queue_messages_waiting(queue_handle_t queue) { return queue ? cb_size(&queue->buffer) : 0; }

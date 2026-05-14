@@ -20,7 +20,7 @@ Morph-RT is designed around a strictly deterministic execution model. Every arch
 
 To prevent memory fragmentation and eliminate non-deterministic heap allocation latency, the kernel employs a strictly static, pool-based memory allocator. All kernel objects (TCBs, stacks, IPC primitives) are statically allocated via memory pools during initialization.
 
-Allocations utilize hardware-friendly bitwise logic. Free blocks are tracked via a 32-bit `free_bitmap`. By checking bits, the allocator finds the next free block in strict O(1) time without traversing linked lists.
+Allocations utilize hardware-friendly bitwise logic. Free blocks are tracked via a 64-bit `free_bitmap`. By checking bits, the allocator finds the next free block in strict O(1) time without traversing linked lists.
 
 ```text
 Memory Pool Layout (e.g., TCB Pool)

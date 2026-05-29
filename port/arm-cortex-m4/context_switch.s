@@ -56,7 +56,7 @@ start_first_task:
 
 /*
  * void trigger_context_switch(void)
- * 
+ *
  * Triggers a context switch by setting PendSV interrupt
  * Called from scheduler_yield()
  */

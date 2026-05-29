@@ -1,0 +1,1 @@
+/usr/lib64/ccache/cc  -Wall -Wextra -g -DUNIT_TEST -g -Wl,--dependency-file=CMakeFiles/test_task.dir/link.d CMakeFiles/test_task.dir/src/test_task.c.o "CMakeFiles/test_task.dir/home/neel/Dev/personal/morph-rt/kernel/src/task.c.o" "CMakeFiles/test_task.dir/home/neel/Dev/personal/morph-rt/kernel/src/memory.c.o" CMakeFiles/test_task.dir/Unity/src/unity.c.o -o test_task

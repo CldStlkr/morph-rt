@@ -63,15 +63,17 @@ static void _scheduler_process_tick(void) {
   list_head_t *pos, *n;
 
   // Use mut iterator because we are removing nodes during iteration
-  list_iter_mut(pos, n, bucket) {
-    task_handle_t t = tcb_from_delay_link(pos);
-    if (time_lte(t->wake_tick, now)) {
-      KERNEL_CRITICAL_BEGIN();
-      list_remove(pos);
-      KERNEL_CRITICAL_END();
+  {
+    KERNEL_CRITICAL_BEGIN();
+    list_iter_mut(pos, n, bucket) {
+      task_handle_t t = tcb_from_delay_link(pos);
+      if (time_lte(t->wake_tick, now)) {
+        list_remove(pos);
 
-      scheduler_expire_timeout(t);
+        scheduler_expire_timeout(t);
+      }
     }
+    KERNEL_CRITICAL_END();
   }
 }
 
@@ -132,6 +134,7 @@ void scheduler_init(void) {
 
   tick_now = 0;
 
+  list_init(&pending_ready_list);
   current_task = NULL;
 }
 
@@ -185,6 +188,7 @@ task_handle_t scheduler_get_next_task(void) {
   while (1) {
   }
 }
+
 void scheduler_add_task(task_handle_t task) {
   if (!task) return;
 
@@ -267,7 +271,12 @@ void scheduler_delay_current_task(uint32_t ticks) {
   current_task->wake_tick = wake;
 
   list_head_t *buckets = (list_head_t *)timing_wheel.buffer;
-  list_insert_tail(&buckets[wake & timing_wheel.mask], &current_task->delay_link);
+
+  {
+    KERNEL_CRITICAL_BEGIN();
+    list_insert_tail(&buckets[wake & timing_wheel.mask], &current_task->delay_link);
+    KERNEL_CRITICAL_END();
+  }
 
   scheduler_unlock();
   scheduler_yield();
@@ -304,7 +313,10 @@ void scheduler_tick(void) {
 void scheduler_set_timeout(task_handle_t t, uint32_t wake_tick) {
   t->wake_tick = wake_tick;
   list_head_t *buckets = (list_head_t *)timing_wheel.buffer;
+
+  KERNEL_CRITICAL_BEGIN();
   list_insert_tail(&buckets[wake_tick & timing_wheel.mask], &t->delay_link);
+  KERNEL_CRITICAL_END();
 }
 
 void scheduler_expire_timeout(task_handle_t t) {

@@ -42,7 +42,8 @@ static void mutex_apply_priority_inheritance(mutex_handle_t mutex) {
   list_head_t *pos;
   list_iter(pos, &mutex->waiting_tasks) {
     task_handle_t waiting_task = tcb_from_mutex_wait_link(pos);
-    highest_priority = waiting_task->effective_priority < highest_priority ? waiting_task->effective_priority : highest_priority;
+    highest_priority =
+        waiting_task->effective_priority < highest_priority ? waiting_task->effective_priority : highest_priority;
   }
 
   // Boost owner if waiting task has higher priority than owner
@@ -56,14 +57,12 @@ static void mutex_apply_priority_inheritance(mutex_handle_t mutex) {
   }
 }
 
-
 static void mutex_restore_priority(mutex_handle_t mutex) {
   if (!mutex->owner || mutex->original_priority == MAX_PRIORITY) return;
 
   scheduler_boost_priority(mutex->owner, mutex->original_priority);
   mutex->original_priority = MAX_PRIORITY;
 }
-
 
 mutex_handle_t mutex_create(const char *name) {
   mutex_control_block *mutex = mutex_pool_alloc_mcb();
@@ -95,7 +94,7 @@ void mutex_delete(mutex_handle_t mutex) {
   }
 
   // Wake all waiting tasks with error condition
-  while(!list_is_empty(&mutex->waiting_tasks)) {
+  while (!list_is_empty(&mutex->waiting_tasks)) {
     task_handle_t task = mutex_waitlist_pop(&mutex->waiting_tasks);
     if (task) {
       task->waiting_on = NULL;
@@ -118,7 +117,7 @@ mutex_result_t mutex_lock(mutex_handle_t mutex, uint32_t timeout) {
 
   KERNEL_CRITICAL_BEGIN();
 
-  while (mutex->owner != NULL) {
+  while (mutex->owner) {
     if (mutex->owner == current_task) {
       KERNEL_CRITICAL_END();
       return MUTEX_ERROR_RECURSIVE;
@@ -130,11 +129,9 @@ mutex_result_t mutex_lock(mutex_handle_t mutex, uint32_t timeout) {
     }
 
     uint32_t now = tick_now;
-    if (timeout != MUTEX_WAIT_FOREVER) {
-      if (time_gte(now, deadline)) {
-        KERNEL_CRITICAL_END();
-        return MUTEX_ERROR_TIMEOUT;
-      }
+    if (timeout != MUTEX_WAIT_FOREVER && time_gte(now, deadline)) {
+      KERNEL_CRITICAL_END();
+      return MUTEX_ERROR_TIMEOUT;
     }
 
     // Block current task
@@ -195,9 +192,7 @@ mutex_result_t mutex_unlock(mutex_handle_t mutex) {
   return MUTEX_OK;
 }
 
-mutex_result_t mutex_try_lock(mutex_handle_t mutex) {
-  return mutex_lock(mutex, MUTEX_NO_WAIT);
-}
+mutex_result_t mutex_try_lock(mutex_handle_t mutex) { return mutex_lock(mutex, MUTEX_NO_WAIT); }
 
 task_handle_t mutex_get_owner(mutex_handle_t mutex) {
   if (!mutex) return NULL;

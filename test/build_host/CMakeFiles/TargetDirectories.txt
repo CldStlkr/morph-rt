@@ -1,0 +1,17 @@
+/home/neel/Dev/personal/morph-rt/test/build_host/CMakeFiles/test_circular_buffer.dir
+/home/neel/Dev/personal/morph-rt/test/build_host/CMakeFiles/test_memory.dir
+/home/neel/Dev/personal/morph-rt/test/build_host/CMakeFiles/test_task.dir
+/home/neel/Dev/personal/morph-rt/test/build_host/CMakeFiles/test_queue.dir
+/home/neel/Dev/personal/morph-rt/test/build_host/CMakeFiles/test_semaphore.dir
+/home/neel/Dev/personal/morph-rt/test/build_host/CMakeFiles/test_mutex.dir
+/home/neel/Dev/personal/morph-rt/test/build_host/CMakeFiles/cb.dir
+/home/neel/Dev/personal/morph-rt/test/build_host/CMakeFiles/memory.dir
+/home/neel/Dev/personal/morph-rt/test/build_host/CMakeFiles/task.dir
+/home/neel/Dev/personal/morph-rt/test/build_host/CMakeFiles/queue.dir
+/home/neel/Dev/personal/morph-rt/test/build_host/CMakeFiles/semaphore.dir
+/home/neel/Dev/personal/morph-rt/test/build_host/CMakeFiles/mutex.dir
+/home/neel/Dev/personal/morph-rt/test/build_host/CMakeFiles/test_all.dir
+/home/neel/Dev/personal/morph-rt/test/build_host/CMakeFiles/my_clean.dir
+/home/neel/Dev/personal/morph-rt/test/build_host/CMakeFiles/test.dir
+/home/neel/Dev/personal/morph-rt/test/build_host/CMakeFiles/edit_cache.dir
+/home/neel/Dev/personal/morph-rt/test/build_host/CMakeFiles/rebuild_cache.dir

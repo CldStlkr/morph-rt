@@ -30,7 +30,7 @@ static inline void wake_one(list_head_t *L) {
   scheduler_add_task(t);
 }
 
-static size_t calculate_buffer_size(size_t queue_length, size_t item_size) { return queue_length * item_size; }
+static inline size_t calculate_buffer_size(size_t queue_length, size_t item_size) { return queue_length * item_size; }
 
 // =============================================================================
 

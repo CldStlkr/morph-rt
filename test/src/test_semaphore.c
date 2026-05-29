@@ -41,6 +41,10 @@ void scheduler_yield(void) {
   // Mock implementation - do nothing (in real system, this would context switch)
 }
 
+void scheduler_block_current_task(void) {
+  // Mock implementation - in real system removes current task from ready queue
+}
+
 //=============================================================================
 // TEST FIXTURES
 //=============================================================================

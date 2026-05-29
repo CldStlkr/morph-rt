@@ -48,9 +48,9 @@ void cs43l22_hw_reset(void) {
   GPIOD->MODER |= GPIO_MODER_MODER4_0; /* output */
 
   GPIOD->BSRR = GPIO_BSRR_BR4; /* assert RESET low */
-  task_delay(10);               /* hold ≥1 ms; spin loops are ~950 ns at 168 MHz */
+  task_delay(10);              /* hold ≥1 ms; spin loops are ~950 ns at 168 MHz */
   GPIOD->BSRR = GPIO_BSRR_BS4; /* release RESET high */
-  task_delay(10);               /* wait for CS43L22 internal regulators to stabilise */
+  task_delay(10);              /* wait for CS43L22 internal regulators to stabilise */
 }
 
 void cs43l22_init(cs43l22_output_t output) {

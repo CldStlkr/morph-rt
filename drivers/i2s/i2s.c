@@ -168,9 +168,7 @@ audio_half_t i2s_wait_for_buffer_request(void) {
    * Reading NDTR here (in task context, after waking) is race-free: the
    * half-buffer period is ~5.8 ms at 44100 Hz, far longer than task latency.
    */
-  return (DMA1_Stream7->NDTR > AUDIO_HALF_SAMPLES)
-             ? AUDIO_FILL_SECOND_HALF
-             : AUDIO_FILL_FIRST_HALF;
+  return (DMA1_Stream7->NDTR > AUDIO_HALF_SAMPLES) ? AUDIO_FILL_SECOND_HALF : AUDIO_FILL_FIRST_HALF;
 }
 
 /* ── DMA ISR ─────────────────────────────────────────────────────────────── */
@@ -179,8 +177,7 @@ void DMA1_Stream7_IRQHandler(void) {
   uint32_t hisr = DMA1->HISR;
 
   /* Clear all flags immediately to prevent re-entry */
-  DMA1->HIFCR = DMA_HISR_TCIF7 | DMA_HISR_HTIF7 |
-                DMA_HISR_TEIF7 | DMA_HISR_DMEIF7 | DMA_HISR_FEIF7;
+  DMA1->HIFCR = DMA_HISR_TCIF7 | DMA_HISR_HTIF7 | DMA_HISR_TEIF7 | DMA_HISR_DMEIF7 | DMA_HISR_FEIF7;
 
   /*
    * Post once for either HTC or TC.  max_count=1 silently drops the second

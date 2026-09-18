@@ -38,6 +38,7 @@ build/
 
 # Test build artifacts
 test/build/
+test/build_host/
 test/results/
 *.gcda
 *.gcno

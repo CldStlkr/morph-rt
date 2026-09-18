@@ -36,7 +36,6 @@ static memory_pool_t semaphore_pool_mgr;
 static memory_pool_t mutex_pool_mgr;
 
 // Array of all pool managers for easy access
-
 static memory_pool_t *pools[POOL_COUNT] = {
     &tcb_pool_mgr,          &stack_small_pool_mgr,   &stack_default_pool_mgr, &stack_large_pool_mgr, &queue_pool_mgr,
     &buffer_small_pool_mgr, &buffer_medium_pool_mgr, &buffer_large_pool_mgr,  &semaphore_pool_mgr,   &mutex_pool_mgr};
@@ -57,14 +56,8 @@ static void pool_init(memory_pool_t *pool, void *pool_start, size_t object_size,
 static int find_free_bit(uint64_t bitmap) {
   if (bitmap == 0) return -1;
 
-  // Find first set bit (free object)
-  for (int i = 0; i < 64; i++) {
-    if (bitmap & (1ULL << i)) {
-      return i;
-    }
-  }
-
-  return -1;
+  // Count trailing zeroes (long long). O(1) instead of O(n) for loop
+  return __builtin_ctzll(bitmap);
 }
 
 static void *get_object_ptr(memory_pool_t *pool, int index) {

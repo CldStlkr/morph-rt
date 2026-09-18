@@ -28,12 +28,10 @@ typedef struct semaphore_control_block {
 } semaphore_control_block;
 
 // Macro for container_of pattern
-#define tcb_from_sem_wait_link(ptr)                                            \
-  container_of(ptr, task_control_block, wait_link)
+#define tcb_from_sem_wait_link(ptr) container_of(ptr, task_control_block, wait_link)
 
 // =========================== PUBLIC API ============================
-semaphore_handle_t sem_create(uint32_t initial_count, uint32_t max_count,
-                              const char *name);
+semaphore_handle_t sem_create(uint32_t initial_count, uint32_t max_count, const char *name);
 void sem_delete(semaphore_handle_t sem);
 
 sem_result_t sem_wait(semaphore_handle_t sem, uint32_t timeout);

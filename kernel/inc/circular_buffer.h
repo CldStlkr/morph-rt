@@ -3,10 +3,9 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-
 
 typedef enum cb_result_t {
   CB_SUCCESS,
@@ -17,7 +16,6 @@ typedef enum cb_result_t {
   CB_ERROR_ALLOCATION_FAILED
 } cb_result_t;
 
-
 typedef struct circular_buffer_t {
   size_t capacity;
   void *buffer; // Void pointer for flexible generics
@@ -25,21 +23,16 @@ typedef struct circular_buffer_t {
   size_t size;
   size_t head;
   size_t tail;
-  size_t mask; // Bit mask
+  size_t mask;
 } circular_buffer_t;
-
 
 static inline bool cb_is_empty(const circular_buffer_t *self) { return self && (self->size == 0); }
 
-
 static inline bool cb_is_full(const circular_buffer_t *self) { return self && (self->size == self->capacity); }
-
 
 static inline size_t cb_size(const circular_buffer_t *self) { return self ? self->size : 0; }
 
-
-static inline cb_result_t cb_init(circular_buffer_t *cb, void *buffer, size_t capacity,
-                    size_t element_size) {
+static inline cb_result_t cb_init(circular_buffer_t *cb, void *buffer, size_t capacity, size_t element_size) {
 
   if (!cb || !buffer) return CB_ERROR_NULL_POINTER;
 
@@ -61,8 +54,6 @@ static inline cb_result_t cb_init(circular_buffer_t *cb, void *buffer, size_t ca
 
   cb->mask = new_capacity - 1;
 
-
-
   cb->capacity = new_capacity;
   cb->buffer = buffer;
   cb->element_size = element_size;
@@ -73,7 +64,6 @@ static inline cb_result_t cb_init(circular_buffer_t *cb, void *buffer, size_t ca
   return CB_SUCCESS;
 }
 
-
 static inline cb_result_t cb_clear(circular_buffer_t *self) {
   if (!self) return CB_ERROR_NULL_POINTER;
   self->size = 0;
@@ -83,10 +73,12 @@ static inline cb_result_t cb_clear(circular_buffer_t *self) {
   return CB_SUCCESS;
 }
 
-// Does not return cb_result_t like other cb functions.
-// Instead returns a pointer to the internal buffer,
-// which the caller has the responsibility of freeing.
-static inline void* cb_deinit(circular_buffer_t *self) {
+/*
+ * Does not return cb_result_t like other cb functions.
+ * Instead returns a pointer to the internal buffer,
+ * which the caller has the responsibility of freeing.
+ */
+static inline void *cb_deinit(circular_buffer_t *self) {
   if (!self) return NULL;
 
   void *buffer_p = self->buffer;
@@ -99,7 +91,6 @@ static inline void* cb_deinit(circular_buffer_t *self) {
 
   return buffer_p;
 }
-
 
 static inline cb_result_t cb_put(circular_buffer_t *self, const void *data) {
   if (!self || !data) return CB_ERROR_NULL_POINTER;
@@ -116,7 +107,6 @@ static inline cb_result_t cb_put(circular_buffer_t *self, const void *data) {
   return CB_SUCCESS;
 }
 
-
 static inline cb_result_t cb_get(circular_buffer_t *self, void *data_out) {
   if (!self || !data_out) return CB_ERROR_NULL_POINTER;
   if (cb_is_empty(self)) return CB_ERROR_BUFFER_EMPTY;
@@ -132,7 +122,6 @@ static inline cb_result_t cb_get(circular_buffer_t *self, void *data_out) {
   return CB_SUCCESS;
 }
 
-
 static inline cb_result_t cb_peek(const circular_buffer_t *self, void *data_out) {
   if (!self || !data_out) return CB_ERROR_NULL_POINTER;
   if (cb_is_empty(self)) return CB_ERROR_BUFFER_EMPTY;
@@ -145,7 +134,6 @@ static inline cb_result_t cb_peek(const circular_buffer_t *self, void *data_out)
   return CB_SUCCESS;
 }
 
-
 static inline void cb_print_stats(const circular_buffer_t *self) {
   if (!self) return;
   printf("circular buffer stats:\n");
@@ -155,6 +143,5 @@ static inline void cb_print_stats(const circular_buffer_t *self) {
   printf("\t tail index: %zu\n", self->tail);
   printf("\t bit mask value: %zu\n\n", self->mask);
 }
-
 
 #endif // !CIRCULAR_BUFFER_H

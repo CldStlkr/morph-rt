@@ -10,8 +10,7 @@
 #include <string.h>
 
 // Task management functions
-task_handle_t task_create_internal(task_function_t function, const char *name,
-                                   uint16_t stack_size, void *param,
+task_handle_t task_create_internal(task_function_t function, const char *name, uint16_t stack_size, void *param,
                                    task_priority_t priority) {
   if (!function || !name || stack_size == 0 || priority > MAX_PRIORITY) {
     return NULL;
@@ -95,12 +94,10 @@ task_state_t task_get_state(task_handle_t task) {
   return task->state;
 }
 
-void task_init_stack(task_handle_t task, task_function_t function,
-                     void *param) {
+void task_init_stack(task_handle_t task, task_function_t function, void *param) {
 
   // Stack grows downward towards base, so start from top
-  uint32_t *stack_top =
-      task->stack_base + (task->stack_size / sizeof(uint32_t));
+  uint32_t *stack_top = task->stack_base + (task->stack_size / sizeof(uint32_t));
   uint32_t *sp = stack_top;
 
   // ARM Cortex-M4 automatically pushes these registers during interrupt entry
@@ -118,14 +115,14 @@ void task_init_stack(task_handle_t task, task_function_t function,
 
   // Software-saved registers (context switcher will save/restore these)
   *(--sp) = 0xFFFFFFFD; // LR (EXC_RETURN) - Return to Thread mode, use PSP
-  *(--sp) = 0; // R11
-  *(--sp) = 0; // R10
-  *(--sp) = 0; // R9
-  *(--sp) = 0; // R8
-  *(--sp) = 0; // R7
-  *(--sp) = 0; // R6
-  *(--sp) = 0; // R5
-  *(--sp) = 0; // R4
+  *(--sp) = 0;          // R11
+  *(--sp) = 0;          // R10
+  *(--sp) = 0;          // R9
+  *(--sp) = 0;          // R8
+  *(--sp) = 0;          // R7
+  *(--sp) = 0;          // R6
+  *(--sp) = 0;          // R5
+  *(--sp) = 0;          // R4
 
   task->stack_pointer = sp;
 }
@@ -135,8 +132,7 @@ bool task_stack_check(task_handle_t task) {
     return false;
   }
 
-  uint32_t *stack_top =
-      task->stack_base + (task->stack_size / sizeof(uint32_t));
+  uint32_t *stack_top = task->stack_base + (task->stack_size / sizeof(uint32_t));
   uint32_t used_bytes = (stack_top - task->stack_pointer) * sizeof(uint32_t);
 
   return used_bytes < task->stack_size;
@@ -147,8 +143,7 @@ uint32_t task_stack_used_bytes(task_handle_t task) {
     return 0;
   }
 
-  uint32_t *stack_top =
-      task->stack_base + (task->stack_size / sizeof(uint32_t));
+  uint32_t *stack_top = task->stack_base + (task->stack_size / sizeof(uint32_t));
   uint32_t used_bytes = (stack_top - task->stack_pointer) * sizeof(uint32_t);
 
   return used_bytes;

@@ -42,6 +42,10 @@ void scheduler_yield(void) {
   // Mock implementation - do nothing (in real system, this would context switch)
 }
 
+void scheduler_block_current_task(void) {
+  // Mock implementation - in real system removes current task from ready queue
+}
+
 void scheduler_boost_priority(task_handle_t task, task_priority_t new_priority) {
   if (task) {
     task->effective_priority = new_priority;

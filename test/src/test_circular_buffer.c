@@ -61,7 +61,7 @@ void test_cb_init_should_round_up_to_power_of_two(void) {
   // Test with non-power-of-2 capacity
   cb_result_t result = cb_init(&test_cb, test_buffer, 6, sizeof(int));
   TEST_ASSERT_EQUAL(CB_SUCCESS, result);
-  
+
   // Should round up to 8 (next power of 2)
   TEST_ASSERT_EQUAL(8, test_cb.capacity);
   TEST_ASSERT_EQUAL(7, test_cb.mask); // mask = capacity - 1
@@ -212,21 +212,21 @@ void test_cb_peek_should_not_modify_buffer(void) {
 void test_cb_deinit_should_clear_structure(void) {
   // Initialize buffer
   cb_init(&test_cb, test_buffer, 4, sizeof(int));
-  
+
   // Add some data
   int value = 42;
   cb_put(&test_cb, &value);
-  
+
   // Verify buffer has data
   TEST_ASSERT_FALSE(cb_is_empty(&test_cb));
   TEST_ASSERT_EQUAL(test_buffer, test_cb.buffer);
-  
+
   // Deinitialize
   void *returned_buffer = cb_deinit(&test_cb);
-  
+
   // Should return the original buffer pointer
   TEST_ASSERT_EQUAL(test_buffer, returned_buffer);
-  
+
   // Structure should be cleared
   TEST_ASSERT_NULL(test_cb.buffer);
   TEST_ASSERT_EQUAL(0, test_cb.size);
@@ -246,12 +246,12 @@ void test_cb_operations_should_handle_null_pointers(void) {
   TEST_ASSERT_FALSE(cb_is_empty(NULL));
   TEST_ASSERT_FALSE(cb_is_full(NULL));
   TEST_ASSERT_EQUAL(0, cb_size(NULL));
-  
+
   int value = 42;
   TEST_ASSERT_EQUAL(CB_ERROR_NULL_POINTER, cb_put(NULL, &value));
   TEST_ASSERT_EQUAL(CB_ERROR_NULL_POINTER, cb_get(NULL, &value));
   TEST_ASSERT_EQUAL(CB_ERROR_NULL_POINTER, cb_peek(NULL, &value));
-  
+
   // Test operations with null data pointer
   cb_init(&test_cb, test_buffer, 4, sizeof(int));
   TEST_ASSERT_EQUAL(CB_ERROR_NULL_POINTER, cb_put(&test_cb, NULL));
@@ -261,32 +261,32 @@ void test_cb_operations_should_handle_null_pointers(void) {
 
 void test_cb_should_handle_different_element_sizes(void) {
   // Test with different data types
-  
+
   // Test with char
   uint8_t char_buffer[32];
   circular_buffer_t char_cb;
   cb_init(&char_cb, char_buffer, 8, sizeof(char));
-  
+
   char char_value = 'A';
   char retrieved_char = 0;
   TEST_ASSERT_EQUAL(CB_SUCCESS, cb_put(&char_cb, &char_value));
   TEST_ASSERT_EQUAL(CB_SUCCESS, cb_get(&char_cb, &retrieved_char));
   TEST_ASSERT_EQUAL(char_value, retrieved_char);
-  
+
   // Test with larger struct
   typedef struct {
     int a;
     float b;
     char c[8];
   } test_struct_t;
-  
+
   uint8_t struct_buffer[64];
   circular_buffer_t struct_cb;
   cb_init(&struct_cb, struct_buffer, 4, sizeof(test_struct_t));
-  
+
   test_struct_t test_struct = {42, 3.14f, "test"};
   test_struct_t retrieved_struct = {0};
-  
+
   TEST_ASSERT_EQUAL(CB_SUCCESS, cb_put(&struct_cb, &test_struct));
   TEST_ASSERT_EQUAL(CB_SUCCESS, cb_get(&struct_cb, &retrieved_struct));
   TEST_ASSERT_EQUAL(test_struct.a, retrieved_struct.a);
@@ -322,10 +322,10 @@ int main(void) {
   RUN_TEST(test_cb_peek_should_not_modify_buffer);
   RUN_TEST(test_cb_deinit_should_clear_structure);
   RUN_TEST(test_cb_deinit_should_handle_null_pointer);
-  
+
   // Error handling
   RUN_TEST(test_cb_operations_should_handle_null_pointers);
-  
+
   // Flexibility tests
   RUN_TEST(test_cb_should_handle_different_element_sizes);
 

@@ -30,6 +30,30 @@ target_include_directories(rtos_kernel PUBLIC
 add_executable(i2c examples/i2c.c)
 target_link_libraries(i2c rtos_kernel)
 
+# Driver library: I2C1, CS43L22, I2S3/DMA
+add_library(audio_drivers OBJECT
+    drivers/i2c/i2c.c
+    drivers/cs43l22/cs43l22.c
+    drivers/i2s/i2s.c
+)
+target_include_directories(audio_drivers PUBLIC
+    drivers/i2c
+    drivers/cs43l22
+    drivers/i2s
+    kernel/inc
+    kernel/inc/cmsis
+    kernel/inc/stm32
+    ${SYSVIEW_DIR}
+)
+
+add_executable(audio examples/audio.c)
+target_link_libraries(audio rtos_kernel audio_drivers)
+target_include_directories(audio PRIVATE
+    drivers/i2c
+    drivers/cs43l22
+    drivers/i2s
+)
+
 add_executable(blinky examples/blinky.c)
 target_link_libraries(blinky rtos_kernel)
 
@@ -56,7 +80,7 @@ add_executable(stress_n32 examples/stress_N32.c examples/latency.c)
 target_link_libraries(stress_n32 rtos_kernel)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Generic")
-    foreach(target uart_demo i2c blinky traffic_stop_ffi stress_n4 stress_n8 stress_n16 stress_n32)
+    foreach(target uart_demo i2c blinky audio traffic_stop_ffi stress_n4 stress_n8 stress_n16 stress_n32)
         target_link_options(${target} PRIVATE
             -T ${CMAKE_SOURCE_DIR}/stm32f4.ld
             --specs=nano.specs

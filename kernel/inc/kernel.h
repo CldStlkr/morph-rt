@@ -29,8 +29,7 @@ void kernel_init(void);
 void kernel_start(void);
 
 // Task management
-task_handle_t task_create(task_function_t function, const char *name,
-                          uint16_t stack_size, void *param,
+task_handle_t task_create(task_function_t function, const char *name, uint16_t stack_size, void *param,
                           task_priority_t priority);
 
 void task_delete(task_handle_t task);

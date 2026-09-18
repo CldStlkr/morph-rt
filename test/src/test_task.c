@@ -142,29 +142,29 @@ void test_task_create_should_fail_when_pools_exhausted(void) {
 
 
 void test_task_create_should_exhaust_tcb_pool_with_mixed_stacks(void) {
-  // Use a mix of stack sizes to fill the TCB pool (8) 
-  // without hitting individual stack pool limits
+  // Fill TCB pool (MAX_TASKS=64) using all three stack tiers:
+  // MAX_LARGE_STACKS(2) + MAX_DEFAULT_STACKS(6) + remaining small = MAX_TASKS
   task_handle_t tasks[MAX_TASKS];
   int created = 0;
 
-  // Create 2 small, 4 default, 2 large = 8 total tasks
-  for (int i = 0; i < 2; i++) {
-    tasks[created] = task_create_internal(dummy_task_function, "Small", SMALL_STACK_SIZE, NULL, 1);
+  for (int i = 0; i < MAX_LARGE_STACKS; i++) {
+    tasks[created] = task_create_internal(dummy_task_function, "Large", LARGE_STACK_SIZE, NULL, 1);
     if (tasks[created]) created++;
   }
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < MAX_DEFAULT_STACKS; i++) {
     tasks[created] = task_create_internal(dummy_task_function, "Default", DEFAULT_STACK_SIZE, NULL, 1);
     if (tasks[created]) created++;
   }
-  for (int i = 0; i < 2; i++) {
-    tasks[created] = task_create_internal(dummy_task_function, "Large", LARGE_STACK_SIZE, NULL, 1);
+  int remaining = MAX_TASKS - MAX_LARGE_STACKS - MAX_DEFAULT_STACKS;
+  for (int i = 0; i < remaining; i++) {
+    tasks[created] = task_create_internal(dummy_task_function, "Small", SMALL_STACK_SIZE, NULL, 1);
     if (tasks[created]) created++;
   }
 
   TEST_ASSERT_EQUAL(MAX_TASKS, created);
 
-  // Now TCB pool should be exhausted
-  task_handle_t overflow = task_create_internal(dummy_task_function, "TCBOverflow", DEFAULT_STACK_SIZE, NULL, 1);
+  // TCB pool should now be exhausted
+  task_handle_t overflow = task_create_internal(dummy_task_function, "TCBOverflow", SMALL_STACK_SIZE, NULL, 1);
   TEST_ASSERT_NULL(overflow);
 
   // Clean up
@@ -345,9 +345,9 @@ void test_task_stack_used_bytes_should_calculate_correctly(void) {
 
   uint32_t used_bytes = task_stack_used_bytes(test_task);
 
-  // Should have used some bytes for the initial stack frame (16 registers * 4
-  // bytes = 64 bytes)
-  TEST_ASSERT_EQUAL(64, used_bytes);
+  // Initial stack frame: 8 hardware-saved (xPSR,PC,LR,R12,R3,R2,R1,R0) +
+  // 9 software-saved (EXC_RETURN,R11-R4) = 17 words = 68 bytes
+  TEST_ASSERT_EQUAL(68, used_bytes);
   TEST_ASSERT_GREATER_THAN(0, used_bytes);
   TEST_ASSERT_LESS_THAN(test_task->stack_size, used_bytes);
 }

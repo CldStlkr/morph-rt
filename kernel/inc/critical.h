@@ -21,8 +21,7 @@ static inline void kernel_critical_exit(uint32_t primask) { (void)primask; }
 #endif
 
 // Simplified macros - single line each to avoid parsing issues
-#define KERNEL_CRITICAL_BEGIN()                                                \
-  uint32_t _critical_state = kernel_critical_enter()
+#define KERNEL_CRITICAL_BEGIN() uint32_t _critical_state = kernel_critical_enter()
 #define KERNEL_CRITICAL_END() kernel_critical_exit(_critical_state)
 
 #endif /* ifndef CRITICAL_H */

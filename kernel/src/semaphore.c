@@ -20,8 +20,7 @@ static inline task_handle_t sem_waitlist_pop(list_head_t *waitlist) {
   return tcb_from_sem_wait_link(node);
 }
 
-static inline void sem_waitlist_push(list_head_t *waitlist,
-                                     task_handle_t task) {
+static inline void sem_waitlist_push(list_head_t *waitlist, task_handle_t task) {
   list_insert_tail(waitlist, &task->wait_link);
 }
 
@@ -41,8 +40,7 @@ static void sem_wait_one_waiter(semaphore_handle_t sem) {
 
 // =========================== PUBLIC API ============================
 
-semaphore_handle_t sem_create(uint32_t initial_count, uint32_t max_count,
-                              const char *name) {
+semaphore_handle_t sem_create(uint32_t initial_count, uint32_t max_count, const char *name) {
   if (max_count == 0 || initial_count > max_count) return NULL;
 
   semaphore_control_block *sem = sem_pool_alloc_scb();
@@ -169,9 +167,7 @@ sem_result_t sem_post(semaphore_handle_t sem) {
   return SEM_ERROR_OVERFLOW;
 }
 
-sem_result_t sem_try_wait(semaphore_handle_t sem) {
-  return sem_wait(sem, SEM_NO_WAIT);
-}
+sem_result_t sem_try_wait(semaphore_handle_t sem) { return sem_wait(sem, SEM_NO_WAIT); }
 
 uint32_t sem_get_count(semaphore_handle_t sem) {
   if (!sem) return 0;

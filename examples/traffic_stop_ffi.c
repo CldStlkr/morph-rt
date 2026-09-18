@@ -1,4 +1,3 @@
-#include "SEGGER_RTT.h"
 #include "kernel.h"
 #include "queue.h"
 #include "scheduler.h"
@@ -20,22 +19,16 @@
 #define LED_RED (1 << 14)
 #define LED_BLUE (1 << 15)
 
-#define DBGMCU_CR (*((volatile uint32_t *)0xE0042004))
-
 void hardware_init(void) {
-  // 1. Enable Clocks for GPIOA (Button) and GPIOD (LEDs)
+  // Enable Clocks for GPIOA (Button) and GPIOD (LEDs)
   RCC_AHB1ENR |= (1 << 0) | (1 << 3);
 
-  // 2. Keep debug clocks running during sleep/stop/standby
-  // This is critical for SystemView to work when the IDLE task calls WFI
-  DBGMCU_CR |= (1 << 0) | (1 << 1) | (1 << 2);
-
-  // 3. Configure User Button (PA0)
+  // Configure User Button (PA0)
   GPIOA_MODER &= ~(3 << 0); // Input mode (00)
   GPIOA_PUPDR &= ~(3 << 0); // Clear pull config
   GPIOA_PUPDR |= (2 << 0);  // Pull-down resistor (10)
 
-  // 3. Configure LEDs (PD12-PD15) as Outputs (01)
+  // Configure LEDs (PD12-PD15) as Outputs (01)
   GPIOD_MODER &= ~((3 << 24) | (3 << 26) | (3 << 28) | (3 << 30));
   GPIOD_MODER |= ((1 << 24) | (1 << 26) | (1 << 28) | (1 << 30));
 }
@@ -72,22 +65,12 @@ int main(void) {
   hardware_init();
   kernel_init();
 
-  SEGGER_RTT_WriteString(0, "Boot: kernel_init complete\n");
-  SEGGER_RTT_WriteString(0, "Boot: about to start tasks\n");
-
   // Create our message queue holding up to 4 events
   queue_handle_t event_queue = queue_create(4, 4);
 
-  // Register all independent tasks from Rust!
-  if (!task_create(rust_task_button_poll, "Btn", 512, event_queue, 2)) {
-    SEGGER_RTT_WriteString(0, "Error: Failed to create Btn task\n");
-  }
-  if (!task_create(rust_task_traffic_light, "Traffic", 512, event_queue, 3)) {
-    SEGGER_RTT_WriteString(0, "Error: Failed to create Traffic task\n");
-  }
-  if (!task_create(rust_task_car_sim, "Cars", 512, NULL, 4)) {
-    SEGGER_RTT_WriteString(0, "Error: Failed to create Cars task\n");
-  }
+  task_create(rust_task_button_poll, "Btn", 512, event_queue, 2);
+  task_create(rust_task_traffic_light, "Traffic", 512, event_queue, 3);
+  task_create(rust_task_car_sim, "Cars", 512, NULL, 4);
 
   kernel_start();
   while (1)

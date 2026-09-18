@@ -1,3 +1,4 @@
+#include "circular_buffer.h"
 #include "critical.h"
 #include "port.h"
 #include "scheduler.h"
@@ -13,10 +14,9 @@ static volatile uint32_t scheduler_lock_count = 0;
 static volatile uint32_t pending_ticks = 0;
 static list_head_t pending_ready_list;
 
-list_head_t _delay_list_1;
-list_head_t _delay_list_2;
-list_head_t *delayed_cur;
-list_head_t *delayed_ovf;
+#define TIMING_WHEEL_SIZE 256
+static list_head_t wheel_buckets[TIMING_WHEEL_SIZE];
+static circular_buffer_t timing_wheel;
 
 volatile uint32_t tick_now = 0;
 
@@ -51,52 +51,29 @@ volatile uint32_t unlock_drain_max = 0;
 #define DWT_LAR (*((volatile uint32_t *)0xE0001FB0))
 #define DWT_UNLOCK_KEY 0xC5ACCE55
 
-static void delayed_insert_sorted(list_head_t *list, task_handle_t t) {
-  list_head_t *pos;
-  list_iter(pos, list) {
-    task_handle_t q = tcb_from_delay_link(pos);
-    if (time_lte(t->wake_tick, q->wake_tick)) {
-      list_insert_before(&t->delay_link, pos);
-      return;
-    }
-  }
-  list_insert_tail(list, &t->delay_link);
-}
-
 static void _scheduler_process_tick(void) {
   KERNEL_CRITICAL_BEGIN();
   uint32_t now = ++tick_now;
   KERNEL_CRITICAL_END();
 
-  // Release all tasks whose wake_tick <= now from current list
-  while (!list_is_empty(delayed_cur)) {
-    task_handle_t t = tcb_from_delay_link(delayed_cur->next); // head
-    if (time_gt(t->wake_tick, now)) break;
+  uint32_t bucket_idx = now & timing_wheel.mask;
+  list_head_t *buckets = (list_head_t *)timing_wheel.buffer;
+  list_head_t *bucket = &buckets[bucket_idx];
 
+  list_head_t *pos, *n;
+
+  // Use mut iterator because we are removing nodes during iteration
+  {
     KERNEL_CRITICAL_BEGIN();
-    list_remove(&t->delay_link);
-    KERNEL_CRITICAL_END();
+    list_iter_mut(pos, n, bucket) {
+      task_handle_t t = tcb_from_delay_link(pos);
+      if (time_lte(t->wake_tick, now)) {
+        list_remove(pos);
 
-    scheduler_expire_timeout(t);
-  }
-
-  // On wrap to 0, swap lists so former overflow becomes current
-  if (now == 0) {
-    list_head_t *tmp = delayed_cur;
-    delayed_cur = delayed_ovf;
-    delayed_ovf = tmp;
-
-    // Drain the new current list for any tasks taht were waiting for tick 0
-    while (!list_is_empty(delayed_cur)) {
-      task_handle_t t = tcb_from_delay_link(delayed_cur->next);
-      if (time_gt(t->wake_tick, now)) break;
-
-      KERNEL_CRITICAL_BEGIN();
-      list_remove(&t->delay_link);
-      KERNEL_CRITICAL_END();
-
-      scheduler_expire_timeout(t);
+        scheduler_expire_timeout(t);
+      }
     }
+    KERNEL_CRITICAL_END();
   }
 }
 
@@ -146,18 +123,18 @@ void scheduler_unlock(void) {
 
 // Core scheduler functions
 void scheduler_init(void) {
-  for (int i = 0; i <= MAX_PRIORITY; i++) {
+  for (int i = 0; i <= MAX_PRIORITY; ++i) {
     list_init(&ready_queues[i]);
   }
-  list_init(&pending_ready_list);
-  list_init(&_delay_list_1);
-  list_init(&_delay_list_2);
 
-  delayed_cur = &_delay_list_1;
-  delayed_ovf = &_delay_list_2;
+  cb_init(&timing_wheel, wheel_buckets, TIMING_WHEEL_SIZE, sizeof(list_head_t));
+  for (int i = 0; i < TIMING_WHEEL_SIZE; ++i) {
+    list_init(&wheel_buckets[i]);
+  }
 
   tick_now = 0;
 
+  list_init(&pending_ready_list);
   current_task = NULL;
 }
 
@@ -211,6 +188,7 @@ task_handle_t scheduler_get_next_task(void) {
   while (1) {
   }
 }
+
 void scheduler_add_task(task_handle_t task) {
   if (!task) return;
 
@@ -281,7 +259,6 @@ void scheduler_delay_current_task(uint32_t ticks) {
 
   // Remove from ready queue
   KERNEL_CRITICAL_BEGIN();
-
   if (!list_is_empty(&current_task->ready_link)) {
     list_remove(&current_task->ready_link);
   }
@@ -293,9 +270,13 @@ void scheduler_delay_current_task(uint32_t ticks) {
   uint32_t wake = now + ticks; // automatically wraps
   current_task->wake_tick = wake;
 
-  list_head_t *L = time_lt(wake, now) ? delayed_ovf : delayed_cur;
+  list_head_t *buckets = (list_head_t *)timing_wheel.buffer;
 
-  delayed_insert_sorted(L, current_task);
+  {
+    KERNEL_CRITICAL_BEGIN();
+    list_insert_tail(&buckets[wake & timing_wheel.mask], &current_task->delay_link);
+    KERNEL_CRITICAL_END();
+  }
 
   scheduler_unlock();
   scheduler_yield();
@@ -330,10 +311,12 @@ void scheduler_tick(void) {
 
 // Caller must hold scheduler_lock or be in a critical section
 void scheduler_set_timeout(task_handle_t t, uint32_t wake_tick) {
-  uint32_t now = tick_now;
   t->wake_tick = wake_tick;
-  list_head_t *L = time_lt(wake_tick, now) ? delayed_ovf : delayed_cur;
-  delayed_insert_sorted(L, t);
+  list_head_t *buckets = (list_head_t *)timing_wheel.buffer;
+
+  KERNEL_CRITICAL_BEGIN();
+  list_insert_tail(&buckets[wake_tick & timing_wheel.mask], &t->delay_link);
+  KERNEL_CRITICAL_END();
 }
 
 void scheduler_expire_timeout(task_handle_t t) {

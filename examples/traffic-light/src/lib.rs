@@ -37,8 +37,14 @@ const LED_RED: u32 = 1 << 14;
 
 static mut IS_GREEN_LIGHT: bool = true;
 
+/// Pools the hardware button and sends events to the queue
+///
+/// # Safety
+///
+/// `queue_handle` must be a valid, non-null queue handle that
+/// remains valid for the lifetime of this task
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_task_button_poll(queue_handle: *mut core::ffi::c_void) {
+pub unsafe extern "C" fn rust_task_button_poll(queue_handle: *mut core::ffi::c_void) {
     let mut last_state = false;
     loop {
         let current_state = unsafe { hardware_read_button() } != 0;
@@ -57,8 +63,14 @@ pub extern "C" fn rust_task_button_poll(queue_handle: *mut core::ffi::c_void) {
     }
 }
 
+/// Manages traffic light state transitions in response to button events
+///
+/// # Safety
+///
+/// `queue_handle` must be a valid, non-null queue handle that
+/// remains valid for the lifetime of this task
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_task_traffic_light(queue_handle: *mut core::ffi::c_void) {
+pub unsafe extern "C" fn rust_task_traffic_light(queue_handle: *mut core::ffi::c_void) {
     loop {
         // GREEN
         unsafe {
@@ -66,20 +78,18 @@ pub extern "C" fn rust_task_traffic_light(queue_handle: *mut core::ffi::c_void) 
             hardware_set_traffic_light(LED_GREEN);
         }
         let mut evt = SysEvent::BtnPressed;
-        
+
         // Wait indefinitely for button press
-        unsafe {
-            queue_receive(queue_handle, &mut evt as *mut _ as *mut core::ffi::c_void, 0xFFFFFFFF);
-        }
+        unsafe { queue_receive(queue_handle, &mut evt as *mut _ as *mut core::ffi::c_void, 0xFFFFFFFF); }
 
         // YELLOW
         unsafe {
             IS_GREEN_LIGHT = false;
             hardware_set_traffic_light(LED_ORANGE);
-            
+
             // Absolutely strictly wait 3s without extending
             task_delay(3000);
-            
+
             // Flush any button presses that accumulated during the wait instantly
             while queue_receive(queue_handle, &mut evt as *mut _ as *mut core::ffi::c_void, 0) == 0 {
                 // Keep pulling until empty
@@ -87,13 +97,13 @@ pub extern "C" fn rust_task_traffic_light(queue_handle: *mut core::ffi::c_void) 
         }
 
         // RED
-        unsafe {
-            hardware_set_traffic_light(LED_RED);
-        }
-        
+        unsafe { hardware_set_traffic_light(LED_RED); }
+
         // Wait indefinitely for button press
         loop {
             let res = unsafe { queue_receive(queue_handle, &mut evt as *mut _ as *mut core::ffi::c_void, 0xFFFFFFFF) };
+            // evt == SysEvent::BtnPressed is reduntant. it is the only variant.
+            // Keeping in case more variants are added.
             if res == 0 && evt == SysEvent::BtnPressed {
                 break;
             }

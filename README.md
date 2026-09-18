@@ -31,8 +31,8 @@ Memory Pool Layout (e.g., TCB Pool)
 +----------------+
 | ...            |
 +----------------+
-| TCB Block 31   |
-+----------------+  <-- pool_start + (object_size * 32)
+| TCB Block 63   |
++----------------+  <-- pool_start + (object_size * 64)
 ```
 
 ### Intrusive Linked Lists & State Management
@@ -59,20 +59,35 @@ stateDiagram-v2
 | BLOCKED → READY | `signal()` or timeout |
 | RUNNING → DELAYED | `sleep()` |
 | DELAYED → READY | SysTick wakeup |
-### O(1) Timing Wheel for Lower Scheduling Jitter
 
-To prevent unbounded scheduling jitter caused by iterating through sorted sleeping tasks during a `SysTick` interrupt, the kernel implements an O(1) timing wheel. Instead of an O(N) linked list insertion, delayed tasks are hashed into a bucketed array.
+### Timing Wheel for Bounded Sleep/Wake Cost
 
-The slot index is computed using a fast bitwise `AND` on the current tick and the wheel mask. Tasks with delays exceeding the wheel size track remaining full rotations via a `rotations` counter in the TCB.
+An earlier revision kept sleeping tasks on a single delay list sorted by wake time. Expiry was cheap, but every `task_delay()` had to walk the list to find its insertion point — an O(N) scan on a path called from ordinary task code.
+
+The kernel now hashes delayed tasks into a 256-bucket wheel indexed by the low bits of the absolute wake tick. Insertion is unconditionally O(1): mask, then push onto a list tail. No scan, no comparison chain.
 
 ```c
-// O(1) insertion into the timing wheel
-uint32_t ticks = ticks_until(wake_tick, tick_now);
-t->rotations = ticks / TIMING_WHEEL_SIZE;
-uint32_t slot = (tick_now + ticks) & TIMING_WHEEL_MASK;
-list_insert_tail(&timing_wheel[slot], &t->delay_link);
+// kernel/src/scheduler.c — O(1) insertion, no sorting
+current_task->wake_tick = tick_now + ticks;  // wraps naturally
+list_insert_tail(&buckets[current_task->wake_tick & timing_wheel.mask],
+                 &current_task->delay_link);
 ```
-During the `SysTick` handler, the kernel only iterates over the tasks in the current slot, decrementing rotations or waking the task if `rotations == 0`.
+
+Each `SysTick` visits exactly one bucket — `buckets[tick_now & mask]` — and wakes the tasks whose `wake_tick` has actually arrived:
+
+```c
+list_iter_mut(pos, n, bucket) {
+  task_handle_t t = tcb_from_delay_link(pos);
+  if (time_lte(t->wake_tick, now)) {      // wrap-safe signed compare
+    list_remove(pos);
+    scheduler_expire_timeout(t);
+  }
+}
+```
+
+There is deliberately **no rotation counter**. A task sleeping longer than the 256-tick wheel span simply lands in its bucket early and gets skipped by the `time_lte` check on each pass, costing one comparison every 256 ticks until its deadline arrives. That single decision removes a per-TCB counter, removes the decrement bookkeeping, and — because `wake_tick` comparisons use the wrap-safe `(int32_t)(a - b)` idiom and the bucket index is a masked wrap — makes the 32-bit tick rollover at ~49.7 days fall out of the design for free rather than needing a special case.
+
+The honest complexity is **O(1) insertion, amortized O(1) expiry**: worst case, a bucket scan is O(k) for the k tasks whose deadlines collide modulo 256.
 
 ### Context Switching & PendSV Preemption
 
@@ -100,7 +115,36 @@ self->tail = (self->tail + 1) & self->mask;
 
 Morph-RT demonstrates interoperability between the C kernel and application logic written in Rust. By compiling a `#![no_std]` Rust crate to a static library (`thumbv7em-none-eabihf`), the CMake build system links it directly against the RTOS.
 
-Rust functions are exposed to the C kernel using `extern "C"`, allowing them to be spawned directly as standard RTOS tasks. Furthermore, the Rust application can safely invoke the kernel's C APIs—such as `task_delay` or `queue_receive`—by binding to them via FFI, providing a modern, memory-safe layer on top of the real-time primitives.
+Rust functions are exposed to the C kernel using `extern "C"`, allowing them to be spawned directly as standard RTOS tasks, and the Rust side calls back into kernel APIs such as `task_delay` and `queue_receive` through hand-written `extern "C"` declarations.
+
+This demonstrates the toolchain and ABI integration — cross-compiling a `no_std` crate, linking it into a bare-metal C image, and passing handles across the boundary. It is not yet a safe abstraction: the bindings are unchecked, and the demo shares state between tasks through a `static mut`. Wrapping the queue in a typed RAII handle and replacing the shared flag with an atomic is tracked as future work.
+
+### Driving Real Hardware: I2S Audio over DMA
+
+The clearest test of whether a kernel is actually useful is whether it can hold a hard periodic deadline against real peripherals. `examples/audio.c` synthesises a 440 Hz tone and plays it out of the STM32F407 Discovery's CS43L22 codec.
+
+```text
+audio_task ──fills──> g_audio_buf[512] ──DMA1 Stream7──> I2S3 ──> CS43L22 DAC
+     ^                  (circular)                                    |
+     └────── sem_post ────── DMA1_Stream7_IRQHandler <── HTC / TC ─────┘
+```
+
+DMA1 Stream 7 runs in **circular mode** over a 512-sample buffer, so the hardware never stops streaming. Half-Transfer and Transfer-Complete interrupts split that buffer in two: the DAC consumes one half while `audio_task` refills the other. The ISR does nothing but clear flags and `sem_post()`; all synthesis happens in task context at priority 1. Miss the ~5.8 ms refill window and you hear it immediately — which makes this a far more honest test of scheduling latency than any synthetic benchmark.
+
+Rather than tracking which half is live in ISR state, the task reads the DMA controller's live `NDTR` counter after waking:
+
+```c
+/* NDTR counts DOWN from AUDIO_BUFFER_SAMPLES to 0.
+   NDTR > half  -> DMA is playing the first half  -> fill the second. */
+return (DMA1_Stream7->NDTR > AUDIO_HALF_SAMPLES) ? AUDIO_FILL_SECOND_HALF
+                                                 : AUDIO_FILL_FIRST_HALF;
+```
+
+This is race-free by a wide margin: the half-buffer period is ~5.8 ms at 44.1 kHz, orders of magnitude longer than task wake latency, so the counter cannot cross the midpoint between the ISR firing and the task reading it.
+
+The codec is configured over a companion **interrupt-driven I2C1 driver** (`drivers/i2c/`) that is itself built on kernel primitives: a mutex serialises bus access so two tasks cannot interleave frames, and each transaction blocks the caller on a semaphore while a small ISR state machine (`START → ADDR_W → REG → RESTART → ADDR_R → RX`) advances one step per interrupt. No spinning, no busy-waiting — the CPU is handed to other tasks for the entire duration of a 100 kHz bus transfer.
+
+Clocking is derived from PLLI2S (VCO 271 MHz ÷ 6 → 45.167 MHz, I2SDIV=2, MCKOE=1), giving an actual sample rate of 44,108 Hz against the 44,100 Hz ideal — a documented +0.02% error rather than an assumed-exact divider.
 
 ## Features
 
@@ -109,7 +153,8 @@ Rust functions are exposed to the C kernel using `extern "C"`, allowing them to 
 * **Intrusive Data Structures:** Zero-allocation queueing using embedded linked-list nodes.
 * **IPC Primitives:** Mutexes (with priority inheritance), counting semaphores, and generic message queues.
 * **Zero-Overhead Wraparounds:** Power-of-2 circular buffers for bounded queue operations.
-* **Hardware Trace Integration:** Native integration with SEGGER SystemView via RTT for sub-microsecond visualization of scheduler behavior.
+* **Cycle-Accurate Profiling:** DWT cycle-counter instrumentation of tick processing, scheduler selection and IRQ-to-task latency, dumped from target RAM over SWD (`scripts/profile.sh`). SEGGER RTT provides low-overhead logging from the running kernel.
+* **Peripheral Drivers:** Interrupt-driven I2C1 (mutex-serialised, semaphore-blocking state machine) and I2S3 + DMA circular double-buffered audio output to a CS43L22 codec — both built on the kernel's own IPC primitives.
 * **Foreign Function Interface:** Demonstrates robust FFI by linking an embedded Rust static library (`thumbv7em-none-eabihf`) for application layer logic.
 
 ## Build Instructions

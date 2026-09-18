@@ -24,8 +24,12 @@
  * ─────────────────────────────────
  *   START → ADDR_W → REG → RESTART → ADDR_R → RX → DONE
  *
- * NVIC priority for I2C1_EV and I2C1_ER is set to 0xA0 (above PendSV/SysTick
- * at 0xFF so the ISR can safely call sem_post from interrupt context).
+ * NVIC priority for I2C1_EV and I2C1_ER is 0xA.  CMSIS NVIC_SetPriority()
+ * shifts its argument left by (8 - __NVIC_PRIO_BITS) = 4, so 0xA lands in the
+ * priority register as 0xA0 -- numerically below PendSV/SysTick at 0xFF, so
+ * this ISR preempts the scheduler but still sits under any time-critical IRQ
+ * placed above it.  (Passing 0xA0 here would shift to 0xA00, mask to 0x00 and
+ * silently make this the highest-priority interrupt in the system.)
  */
 
 /* ── internal state machine ─────────────────────────────────────────────── */
@@ -112,8 +116,8 @@ void i2c1_init(void) {
   g_bus_mutex = mutex_create("i2c_bus");
 
   /* ── NVIC: priority above PendSV (0xFF) but below everything critical ── */
-  NVIC_SetPriority(I2C1_EV_IRQn, 0xA0);
-  NVIC_SetPriority(I2C1_ER_IRQn, 0xA0);
+  NVIC_SetPriority(I2C1_EV_IRQn, 0xA);
+  NVIC_SetPriority(I2C1_ER_IRQn, 0xA);
   NVIC_EnableIRQ(I2C1_EV_IRQn);
   NVIC_EnableIRQ(I2C1_ER_IRQn);
 

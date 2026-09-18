@@ -131,8 +131,12 @@ static void dma1_stream7_init(void) {
   /* FIFO control: direct mode (FIFO disabled) */
   DMA1_Stream7->FCR = 0;
 
-  /* NVIC */
-  NVIC_SetPriority(DMA1_Stream7_IRQn, 0x90);
+  /*
+   * NVIC: 0x9 -> register value 0x90 (CMSIS shifts left by 8 - __NVIC_PRIO_BITS
+   * = 4).  Slightly more urgent than the I2C driver at 0xA0, well below
+   * PendSV/SysTick at 0xFF.
+   */
+  NVIC_SetPriority(DMA1_Stream7_IRQn, 0x9);
   NVIC_EnableIRQ(DMA1_Stream7_IRQn);
 }
 
